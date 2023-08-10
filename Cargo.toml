@@ -1,0 +1,2 @@
+[workspace]
+members = ["native_api_1c_core", "native_api_1c_macro"]

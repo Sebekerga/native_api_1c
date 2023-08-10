@@ -1,0 +1,12 @@
+[package]
+name = "sample_addin_rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+utf16_lit = "2.0"
+native_api_1c_core = { path = "../native_api_1c_core" }
+native_api_1c_macro = { path = "../native_api_1c_macro" }

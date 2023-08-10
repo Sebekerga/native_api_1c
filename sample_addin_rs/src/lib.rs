@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use native_api_1c_core::ffi::connection::Connection;
-use native_api_1c_macro::AddIn;
+use native_api_1c::native_api_1c_core::ffi::connection::Connection;
+use native_api_1c::native_api_1c_macro::AddIn;
 
 #[derive(AddIn)]
 pub struct MyAddIn {

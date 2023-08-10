@@ -1,0 +1,12 @@
+[package]
+name = "native_api_1c"
+version = "0.9.0"
+edition = "2021"
+
+[dependencies]
+native_api_1c_core = { version = "=0.9.0", path = "../native_api_1c_core" }
+native_api_1c_macro = { version = "=0.9.0", path = "../native_api_1c_macro" }
+
+[features]
+default = ["macro"]
+macro = []

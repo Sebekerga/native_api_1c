@@ -1,10 +1,11 @@
 [package]
 name = "native_api_1c"
-version = "0.9.1"
+version = "0.9.2"
 edition = "2021"
 repository = "https://github.com/Sebekerga/native_api_1c"
 license = "MIT"
 description = "Main library for Native API 1C"
+readme = "../README.md"
 
 [dependencies]
 native_api_1c_core = { version = "=0.9.0", path = "../native_api_1c_core" }

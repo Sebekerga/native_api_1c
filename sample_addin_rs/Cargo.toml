@@ -10,3 +10,5 @@ crate-type = ["cdylib"]
 utf16_lit = "2.0"
 native_api_1c_core = { path = "../native_api_1c_core" }
 native_api_1c_macro = { path = "../native_api_1c_macro" }
+
+[workspace]

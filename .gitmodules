@@ -1,0 +1,7 @@
+[submodule "native_api_1c_core"]
+path = native_api_1c_core
+url = https://github.com/Sebekerga/native_api_1c_core
+
+[submodule "native_api_1c_macro"]
+path = native_api_1c_macro
+url = https://github.com/Sebekerga/native_api_1c_macro

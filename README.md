@@ -50,7 +50,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 utf16_lit = "2.0"
-native_api_1c = "0.10.1"
+native_api_1c = "0.10.2"
 ```
 
 ```rust

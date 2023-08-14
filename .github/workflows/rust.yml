@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Install mingw-w64
+      run: sudo apt-get -y install mingw-w64
     - name: Install target
       run: rustup target add x86_64-pc-windows-gnu
     - name: Build sample AddIn

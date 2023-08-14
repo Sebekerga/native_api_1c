@@ -16,7 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Build sample AddIn
+      working-directory: ./sample_addin_rs
+      run: cargo build --target=x86_64-pc-windows-gnu --verbose
+    - name: Run tests for native_api_1c_macro
+      working-directory: ./native_api_1c_macro
+      run: cargo t

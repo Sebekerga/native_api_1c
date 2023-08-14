@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 utf16_lit = "2.0"
 native_api_1c = "0.10.1"
+chrono = "0.4.26"
 
 
 [workspace]

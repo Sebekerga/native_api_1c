@@ -9,7 +9,7 @@ readme = "../README.md"
 
 [dependencies]
 native_api_1c_core = { version = "=0.9.3", path = "../native_api_1c_core" }
-native_api_1c_macro = { version = "=0.10.2", path = "../native_api_1c_macro" }
+native_api_1c_macro = { version = "=0.10.3", path = "../native_api_1c_macro" }
 
 [features]
 default = ["macro"]

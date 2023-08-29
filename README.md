@@ -1,32 +1,35 @@
-# Описание
-Библиотека для простой реализации внешней компоненты для 1С на чистом Rust, основано на примере, созданным [пользователем **medigor**](https://github.com/medigor/example-native-api-rs)
+>Гайд по использованию на русском языке можно посмотреть [здесь](https://infostart.ru/1c/articles/1920565/) и задать вопросы по использованию, но не оставляйте там комментарии об ошибках, т.к. там сложно это обсуждать. Лучше создайте issue в этом репозитории.
 
-Библиотека делится на два подмодуля:
-- `native_api_1c_core` описывает все необходимое для реализации ВК
-- `native_api_1c_macro` предоставляет инструмент для значительного упрощения описания компоненты, беря на себя реализацию свойства `native_api_1c_core::interface::AddInWrapper`
+Library for simple 1C:Enterprise platform Native API Component development, originates from findings of this [medigor/example-native-api-rs](https://github.com/medigor/example-native-api-rs)
 
+Crate is tested on Linux and Windows. It should work on MacOS as well, but it is not tested.
 
-# Описание использования макроса
+# Structure
+Library is divided into two submodules:
+- `native_api_1c_core` describes all necessary for implementing 1C:Enterprise Native API
+- `native_api_1c_macro` provides a tool for significant simplification of component implementation, taking care of `native_api_1c_core::interface::AddInWrapper` property implementation
 
-## Атрибуты, `#[add_in_prop(...)]`
-- `name` - имя свойства в 1С
-- `name_ru` - имя свойства в 1С на русском
-- `readable` - свойство доступно для чтения из 1С
-- `writable` - свойство доступно для записи из 1С
+# Usage
 
-Доступные типы свойств: `i32`, `f64`, `bool`, `String`
+## Attributes `#[add_in_prop(...)]`
+- `name` - property name in 1C
+- `name_ru` - property name in 1C in Russian
+- `readable` - property is readable from 1C
+- `writable` - property is writable from 1C
 
-## Функции и процедуры, `#[add_in_func(...)]`
-- `name` - имя свойства в 1С
-- `name_ru` - имя свойства в 1С на русском
-### Входные аргументы, `#[arg(...)]`, для каждого
+Available property types: `i32`, `f64`, `bool`, `String`
+
+## Functions or procedures `#[add_in_func(...)]`
+- `name` - property name in 1C
+- `name_ru` - property name in 1C in Russian
+### Input arguments, `#[arg(...)]`, for each type of argument must be set, on of:
 - `Int` - `i32`
 - `Float` - `f64`
 - `Bool` - `bool`
 - `Str` - `String`
 - `Date` - `chrono::DateTime<chrono::FixedOffset>`
 - `Blob` - `Vec<u8>`
-### Возвращаемые значения, `#[returns(...)]`
+### Return values, `#[returns(...)]`, type must be set, one of:
 - `Int` - `i32`
 - `Float` - `f64`
 - `Bool` - `bool`
@@ -34,9 +37,9 @@
 - `Date` - `chrono::DateTime<chrono::FixedOffset>`
 - `Blob` - `Vec<u8>`
 - `None` - `()`
-- `Result<T, ()>` - `T`: Одно из выше перечисленных. Необходимо указать `result` в атрибуте `#[returns(...)]`
+Additionally, `Result<T, ()>` can be used, where `T` is one of the above. In this case, `result` must be set in `#[returns(...)]` attribute: `#[returns(Int, result)]` for `Result<i32, ()>`
 
-## Пример реализации простой компоненты:
+## Example
 
 ```toml
 # Cargo.toml
@@ -50,7 +53,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 utf16_lit = "2.0"
-native_api_1c = "0.10.2"
+native_api_1c = "0.10.3"
 ```
 
 ```rust
@@ -61,33 +64,41 @@ use native_api_1c::{native_api_1c_core::ffi::connection::Connection, native_api_
 
 #[derive(AddIn)]
 pub struct MyAddIn {
-    // соедиенение с 1С для вызова внешних событий
+    /// connection with 1C, used for calling events
+    /// Arc is used to allow multiple threads to access the connection 
     #[add_in_con]
-    connection: Arc<Option<&'static Connection>>, // Arc для возможности многопоточности
+    connection: Arc<Option<&'static Connection>>, 
 
-    // свойство, доступное для чтения и записи
+    /// Property, readable and writable from 1C
     #[add_in_prop(name = "MyProp", name_ru = "МоеСвойство", readable, writable)]
     pub some_prop: i32,
 
-    // свойство, доступное только для чтения
+    /// Property, readable from 1C but not writable
     #[add_in_prop(name = "ProtectedProp", name_ru = "ЗащищенноеСвойство", readable)]
     pub protected_prop: i32,
 
-    // функция, принимающая один или два аргумента и возвращающая результат
-    // в 1С можно вызвать как:
-    //  ОбъектКомпоненты.МояФункция(10, 15); // 2й аргумент = 15
-    //  ОбъектКомпоненты.МояФункция(10);     // 2й аргумент = 12 (значение по умолчанию)
-    // Если функция возвращает ошибку, но не паника, то в 1С будет вызвано исключение
+    /// функция, принимающая один или два аргумента и возвращающая результат
+    /// в 1С можно вызвать как:
+    ///  ОбъектКомпоненты.МояФункция(10, 15); // 2й аргумент = 15
+    ///  ОбъектКомпоненты.МояФункция(10);     // 2й аргумент = 12 (значение по умолчанию)
+    /// Если функция возвращает ошибку, но не паника, то в 1С будет вызвано исключение
+
+    /// Function, taking one or two arguments and returning a result
+    /// In 1C it can be called as:
+    ///  ComponentObject.MyFunction(10, 15); // 2nd argument = 15
+    ///  ComponentObject.MyFunction(10);     // 2nd argument = 12 (default value)
+    /// If function returns an error, but does not panic, then 1C will throw an exception 
     #[add_in_func(name = "MyFunction", name_ru = "МояФункция")]
     #[arg(Int)]
     #[arg(Int, default = 12)]
     #[returns(Int, result)]
     pub my_function: fn(&Self, i32, i64) -> Result<i32, ()>,
 
-    // Процедура, ничего не получающая, ничего не возвращающая
+    /// Function, taking no arguments and returning nothing 
     #[add_in_func(name = "MyProcedure", name_ru = "МояПроцедура")]
     pub my_procedure: fn(&mut Self),
 
+    /// Private field, not visible from 1C
     private_field: i32,
 }
 

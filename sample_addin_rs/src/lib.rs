@@ -17,12 +17,6 @@ pub struct MyAddIn {
     #[add_in_prop(name = "ProtectedProp", name_ru = "ЗащищенноеСвойство", readable)]
     pub protected_prop: i32,
 
-    /// функция, принимающая один или два аргумента и возвращающая результат
-    /// в 1С можно вызвать как:
-    ///  ОбъектКомпоненты.МояФункция(10, 15); // 2й аргумент = 15
-    ///  ОбъектКомпоненты.МояФункция(10);     // 2й аргумент = 12 (значение по умолчанию)
-    /// Если функция возвращает ошибку, но не паника, то в 1С будет вызвано исключение
-
     /// Function, taking one or two arguments and returning a result
     /// In 1C it can be called as:
     ///  ComponentObject.MyFunction(10, 15); // 2nd argument = 15

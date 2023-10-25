@@ -27,7 +27,8 @@ pub fn parse_functions(struct_data: &DataStruct) -> Result<Vec<FuncDesc>, TokenS
     
     // iterate over methods
     for field in &struct_data.fields {
-        let Some(attr) = field.attrs.get(0) else { 
+        let fields_without_docs: Vec<&syn::Attribute> = field.attrs.iter().filter(|attr| !attr.path().is_ident("doc")).collect();
+        let Some(attr) = fields_without_docs.get(0) else { 
             continue; 
         };
         if !attr.path().is_ident("add_in_func") {

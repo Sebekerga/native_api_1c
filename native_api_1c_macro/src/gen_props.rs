@@ -20,13 +20,14 @@ pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStrea
 
     // iterate over props
     for prop in &struct_data.fields {
-        let Some(attr) = prop.attrs.get(0) else { 
+        let attr_without_docs: Vec<&syn::Attribute> = prop.attrs.iter().filter(|attr| !attr.path().is_ident("doc")).collect();
+        let Some(attr) = attr_without_docs.get(0) else { 
             continue; 
         };
         if !attr.path().is_ident("add_in_prop") {
             continue;
         };
-        if prop.attrs.len() > 1 {
+        if attr_without_docs.len() > 1 {
             return tkn_err!("AddIn fields can have 1 attribute at most", prop.__span());
         }
         let Some(prop_ident) = prop.ident.clone() else {

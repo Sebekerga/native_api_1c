@@ -2,7 +2,7 @@
 name = "native_api_1c_macro"
 version = "0.10.4"
 edition = "2021"
-repository = "https://github.com/Sebekerga/native_api_1c_macro"
+repository = "https://github.com/Sebekerga/native_api_1c"
 license = "MIT"
 description = "Macro library for Native API 1C"
 
@@ -27,7 +27,7 @@ quote = "1.0.32"
 proc-macro2 = "1.0.66"
 
 [dev-dependencies]
-native_api_1c = { git = "https://github.com/Sebekerga/native_api_1c" }
+native_api_1c = { path = "../native_api_1c" }
 trybuild = { version = "1.0.49", features = ["diff"] }
 utf16_lit = "2.0"
 chrono = "0.4.26"

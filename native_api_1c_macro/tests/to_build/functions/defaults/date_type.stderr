@@ -1,0 +1,5 @@
+error: AddIn function attribute `arg` of type `Date` cannot have default value
+  --> tests/to_build/functions/defaults/date_type.rs:12:6
+   |
+12 |     #[arg(Date, default = "2021-01-01T00:00:00+00:00")]
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

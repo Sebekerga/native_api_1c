@@ -1,0 +1,13 @@
+[package]
+name = "native_api_1c_core"
+version = "0.9.3"
+edition = "2021"
+repository = "https://github.com/Sebekerga/native_api_1c_core"
+license = "MIT"
+description = "Core library for Native API 1C"
+
+[dependencies]
+utf16_lit = "2.0"
+syn = { version = "2.0.28", features = ["full"] }
+quote = "1.0.32"
+chrono = "0.4.26"

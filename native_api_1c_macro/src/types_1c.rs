@@ -1,6 +1,8 @@
+use darling::FromMeta;
+
 use crate::constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ParamType {
     Bool,
     I32,
@@ -11,11 +13,29 @@ pub enum ParamType {
     SelfType,
 }
 
-impl TryFrom<&String> for ParamType {
+impl FromMeta for ParamType {
+    fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
+        let expr_string = match expr {
+            syn::Expr::Lit(str_lit) => match str_lit.lit {
+                syn::Lit::Str(ref str) => str.value(),
+                _ => return Err(darling::Error::custom("expected string literal")),
+            },
+            syn::Expr::Path(path) => path.path.segments.first().unwrap().ident.to_string(),
+            _ => return Err(darling::Error::custom("expected string literal")),
+        };
+        Self::from_string(&expr_string)
+    }
+
+    fn from_string(value: &str) -> darling::Result<Self> {
+        Self::try_from(value).map_err(|_| darling::Error::custom("unknown type"))
+    }
+}
+
+impl TryFrom<&str> for ParamType {
     type Error = ();
 
-    fn try_from(value: &String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
             BOOL_TYPE => Ok(ParamType::Bool),
             I32_TYPE => Ok(ParamType::I32),
             F64_TYPE => Ok(ParamType::F64),

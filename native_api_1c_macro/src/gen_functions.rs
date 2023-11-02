@@ -4,7 +4,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{Attribute, DataStruct, Expr, Ident};
 
-use crate::{constants::UNTYPED_TYPE, types_1c::ParamType};
+use crate::types_1c::ParamType;
 
 pub struct FuncDesc {
     pub ident: Ident,
@@ -22,13 +22,15 @@ impl FromField for FuncDesc {
             .filter(|attr| attr.path().is_ident("add_in_func"))
             .collect();
         if add_in_func_attr.is_empty() {
-            return Err(darling::Error::custom(
-                "Field must have `add_in_func` attribute",
-            ));
+            return Err(
+                darling::Error::custom("Field must have `add_in_func` attribute")
+                    .with_span(&field.ident.clone().unwrap()),
+            );
         } else if add_in_func_attr.len() > 1 {
-            return Err(darling::Error::custom(
-                "Field can have only 1 `add_in_func` attribute",
-            ));
+            return Err(
+                darling::Error::custom("Field can have only 1 `add_in_func` attribute")
+                    .with_span(&field.ident.clone().unwrap()),
+            );
         };
         let add_in_func_attr = add_in_func_attr[0];
 
@@ -44,19 +46,20 @@ impl FromField for FuncDesc {
             .filter(|attr| attr.path().is_ident("returns"))
             .collect();
         if returns_attrs.len() > 1 {
-            return Err(darling::Error::custom(
-                "Field can have at most 1 `returns` attribute",
-            ));
+            return Err(
+                darling::Error::custom("Field can have at most 1 `returns` attribute")
+                    .with_span(&field.ident.clone().unwrap()),
+            );
         };
         let returns_attr = returns_attrs.get(0).copied();
 
-        let func_meta = FuncHeadMeta::from_meta(&add_in_func_attr.parse_args()?)?;
+        let func_meta = FuncHeadMeta::from_meta(&add_in_func_attr.meta)?;
         let params_meta = arg_attrs
             .iter()
-            .map(|attr| FuncArgumentMeta::from_meta(&attr.parse_args()?))
+            .map(|attr| FuncArgumentMeta::from_meta(&attr.meta))
             .collect::<darling::Result<Vec<FuncArgumentMeta>>>()?;
         let return_meta = returns_attr
-            .map(|attr| FuncReturnMeta::from_meta(&attr.parse_args()?))
+            .map(|attr| FuncReturnMeta::from_meta(&attr.meta))
             .transpose()?;
 
         let params = params_meta
@@ -98,28 +101,27 @@ pub struct FuncArgumentDesc {
 
 #[derive(FromMeta, Debug)]
 struct FuncArgumentMeta {
-    ty: String,
+    ty: ParamType,
     default: Option<Expr>,
     #[allow(dead_code)]
-    as_in: bool,
-    as_out: bool,
+    as_in: Option<()>,
+    as_out: Option<()>,
 }
 
 impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
     type Error = ErrorConvertingMeta;
 
     fn try_from(arg_meta: FuncArgumentMeta) -> Result<Self, Self::Error> {
-        if arg_meta.as_in && arg_meta.as_out {
+        if arg_meta.as_in.is_some() && arg_meta.as_out.is_some() {
             return Err(Self::Error::ConflictingParams(
                 "as_in".to_string(),
                 "as_out".to_string(),
             ));
         }
         Ok(Self {
-            ty: ParamType::try_from(&arg_meta.ty)
-                .map_err(|_| Self::Error::InvalidTypeForParam(arg_meta.ty))?,
+            ty: arg_meta.ty,
             default: arg_meta.default,
-            out_param: arg_meta.as_out,
+            out_param: arg_meta.as_out.is_some(),
         })
     }
 }
@@ -131,8 +133,8 @@ pub struct FuncReturnDesc {
 
 #[derive(FromMeta, Debug)]
 struct FuncReturnMeta {
-    ty: String,
-    result: bool,
+    ty: Option<ParamType>,
+    result: Option<()>,
 }
 
 impl TryFrom<FuncReturnMeta> for FuncReturnDesc {
@@ -140,14 +142,8 @@ impl TryFrom<FuncReturnMeta> for FuncReturnDesc {
 
     fn try_from(arg_meta: FuncReturnMeta) -> Result<Self, Self::Error> {
         Ok(Self {
-            ty: match arg_meta.ty.as_str() {
-                UNTYPED_TYPE => None,
-                _ => Some(
-                    ParamType::try_from(&arg_meta.ty)
-                        .map_err(|_| Self::Error::InvalidTypeForReturn(arg_meta.ty))?,
-                ),
-            },
-            result: arg_meta.result,
+            ty: arg_meta.ty,
+            result: arg_meta.result.is_some(),
         })
     }
 }

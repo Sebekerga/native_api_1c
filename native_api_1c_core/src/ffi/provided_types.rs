@@ -1,8 +1,8 @@
-use chrono::{Datelike, Offset, Timelike};
+use chrono::{Datelike, Timelike};
 use std::{
     ffi::{c_int, c_void},
     ptr,
-    slice::{from_raw_parts, from_raw_parts_mut},
+    slice::from_raw_parts,
 };
 
 use super::memory_manager::{AllocationError, MemoryManager};
@@ -251,7 +251,7 @@ pub enum ParamValue {
     Blob(Vec<u8>),
 }
 
-impl<'a> PartialEq for ParamValue {
+impl PartialEq for ParamValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Empty, Self::Empty) => true,
@@ -384,7 +384,7 @@ impl TVariant {
         mem_mngr: &MemoryManager,
         v: &[u16],
     ) -> Result<u32, AllocationError> {
-        let mut old_pointer = self.value.data_str.ptr;
+        let old_pointer = self.value.data_str.ptr;
 
         let ptr = mem_mngr.alloc_str(v.len())?;
         ptr::copy_nonoverlapping(v.as_ptr(), ptr.as_ptr(), v.len());
@@ -399,12 +399,15 @@ impl TVariant {
         Ok(self.value.data_str.len)
     }
 
+    /// # Safety
+    /// This function is unsafe because it manipulates pointers, provided by the 1C platform.
+    /// Function is safe as long as 1C platform provides valid pointers.
     pub unsafe fn update_to_blob(
         &mut self,
         mem_mngr: &MemoryManager,
         v: &[u8],
     ) -> Result<u32, AllocationError> {
-        let mut old_pointer = self.value.data_blob.ptr;
+        let old_pointer = self.value.data_blob.ptr;
 
         let ptr = mem_mngr.alloc_blob(v.len())?;
         ptr::copy_nonoverlapping(v.as_ptr(), ptr.as_ptr(), v.len());

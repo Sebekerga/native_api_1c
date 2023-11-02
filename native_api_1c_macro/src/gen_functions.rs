@@ -100,16 +100,24 @@ pub struct FuncArgumentDesc {
 pub struct FuncArgumentMeta {
     ty: String,
     default: Option<Expr>,
+    #[allow(dead_code)]
     as_in: bool,
     as_out: bool,
 }
 
 impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
-    type Error = ();
+    type Error = ErrorConvertingMeta;
 
     fn try_from(arg_meta: FuncArgumentMeta) -> Result<Self, Self::Error> {
+        if arg_meta.as_in && arg_meta.as_out {
+            return Err(Self::Error::ConflictingParams(
+                "as_in".to_string(),
+                "as_out".to_string(),
+            ));
+        }
         Ok(Self {
-            ty: ParamType::try_from(&arg_meta.ty)?,
+            ty: ParamType::try_from(&arg_meta.ty)
+                .map_err(|_| Self::Error::InvalidTypeForParam(arg_meta.ty))?,
             default: arg_meta.default,
             out_param: arg_meta.as_out,
         })
@@ -128,16 +136,47 @@ pub struct FuncReturnMeta {
 }
 
 impl TryFrom<FuncReturnMeta> for FuncReturnDesc {
-    type Error = ();
+    type Error = ErrorConvertingMeta;
 
     fn try_from(arg_meta: FuncReturnMeta) -> Result<Self, Self::Error> {
         Ok(Self {
             ty: match arg_meta.ty.as_str() {
                 UNTYPED_TYPE => None,
-                _ => Some(ParamType::try_from(&arg_meta.ty)?),
+                _ => Some(
+                    ParamType::try_from(&arg_meta.ty)
+                        .map_err(|_| Self::Error::InvalidTypeForReturn(arg_meta.ty))?,
+                ),
             },
             result: arg_meta.result,
         })
+    }
+}
+
+pub enum ErrorConvertingMeta {
+    InvalidTypeForParam(String),
+    InvalidTypeForReturn(String),
+    ConflictingParams(String, String),
+}
+
+impl From<ErrorConvertingMeta> for darling::Error {
+    fn from(err: ErrorConvertingMeta) -> Self {
+        match err {
+            ErrorConvertingMeta::InvalidTypeForParam(ty) => {
+                let joined_allowed_types = crate::constants::ALL_ARG_TYPES.join(", ");
+                darling::Error::custom(format!(
+                    "Invalid type: `{ty}`. Must be one of: {joined_allowed_types}"
+                ))
+            }
+            ErrorConvertingMeta::InvalidTypeForReturn(ty) => {
+                let joined_allowed_types = crate::constants::ALL_RETURN_TYPES.join(", ");
+                darling::Error::custom(format!(
+                    "Invalid type: `{ty}`. Must be one of: {joined_allowed_types}"
+                ))
+            }
+            ErrorConvertingMeta::ConflictingParams(param1, param2) => {
+                darling::Error::custom(format!("Conflicting params: {} and {}", param1, param2))
+            }
+        }
     }
 }
 

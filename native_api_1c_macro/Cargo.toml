@@ -22,7 +22,7 @@ path = "tests/props.rs"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0.28", features = ["full"] }
+syn = { version = "2.0.38", features = ["default", "printing"] }
 quote = "1.0.32"
 proc-macro2 = "1.0.66"
 darling = "0.20.3"

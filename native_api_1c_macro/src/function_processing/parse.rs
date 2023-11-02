@@ -1,6 +1,10 @@
 use darling::{FromField, FromMeta};
 use proc_macro::TokenStream;
-use syn::{Attribute, DataStruct, Expr};
+use quote::ToTokens;
+use syn::{
+    parse::{Parse, ParseBuffer},
+    Attribute, DataStruct, Expr,
+};
 
 use crate::{types_1c::ParamType, utils::macros::tkn_err};
 
@@ -74,21 +78,20 @@ impl FromField for FuncDesc {
                 .with_span(&field.ident.clone().unwrap()));
         };
         if let Some(first_input) = bare_fn.inputs.first() {
-            if let syn::Type::Reference(reference) = &first_input.ty {
-                if let syn::Type::Path(path) = &*reference.elem {
-                    if let Some(ident) = path.path.get_ident() {
-                        if ident == "Self" {
-                            params.insert(
-                                0,
-                                FuncArgumentDesc {
-                                    ty: ParamType::SelfType,
-                                    default: None,
-                                    out_param: reference.mutability.is_some(),
-                                },
-                            )
-                        }
-                    }
-                }
+            let arg_token_stream: proc_macro::TokenStream = first_input.to_token_stream().into();
+
+            let reference: syn::TypeReference = syn::parse(arg_token_stream.clone())?;
+            let ident: syn::Ident = syn::parse(arg_token_stream.clone())?;
+
+            if ident == "Self" {
+                params.insert(
+                    0,
+                    FuncArgumentDesc {
+                        ty: ParamType::SelfType,
+                        default: None,
+                        out_param: reference.mutability.is_some(),
+                    },
+                )
             };
         };
 

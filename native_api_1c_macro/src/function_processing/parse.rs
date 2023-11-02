@@ -2,7 +2,7 @@ use darling::{FromField, FromMeta};
 use proc_macro::TokenStream;
 use syn::{Attribute, DataStruct, Expr};
 
-use crate::types_1c::ParamType;
+use crate::{types_1c::ParamType, utils::macros::tkn_err};
 
 use super::{FuncArgumentDesc, FuncDesc};
 
@@ -54,7 +54,7 @@ impl FromField for FuncDesc {
             .map(|attr| FuncReturnMeta::from_meta(&attr.meta))
             .transpose()?;
 
-        let params = params_meta
+        let mut params = params_meta
             .into_iter()
             .map(FuncArgumentDesc::try_from)
             .map(|res| res.map_err(|_| darling::Error::custom("Invalid argument type")))
@@ -67,6 +67,29 @@ impl FromField for FuncDesc {
                 ty: None,
                 result: false,
             },
+        };
+
+        let syn::Type::BareFn(bare_fn) = &field.ty else {
+            return Err(darling::Error::custom("AddIn functions must have bare `fn` type")
+                .with_span(&field.ident.clone().unwrap()));
+        };
+        if let Some(first_input) = bare_fn.inputs.first() {
+            if let syn::Type::Reference(reference) = &first_input.ty {
+                if let syn::Type::Path(path) = &*reference.elem {
+                    if let Some(ident) = path.path.get_ident() {
+                        if ident == "Self" {
+                            params.insert(
+                                0,
+                                FuncArgumentDesc {
+                                    ty: ParamType::SelfType,
+                                    default: None,
+                                    out_param: reference.mutability.is_some(),
+                                },
+                            )
+                        }
+                    }
+                }
+            };
         };
 
         Ok(Self {

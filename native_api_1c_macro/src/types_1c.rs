@@ -18,16 +18,21 @@ impl FromMeta for ParamType {
         let expr_string = match expr {
             syn::Expr::Lit(str_lit) => match str_lit.lit {
                 syn::Lit::Str(ref str) => str.value(),
-                _ => return Err(darling::Error::custom("expected string literal")),
+                _ => return Err(darling::Error::custom("expected string literal or path")),
             },
             syn::Expr::Path(path) => path.path.segments.first().unwrap().ident.to_string(),
-            _ => return Err(darling::Error::custom("expected string literal")),
+            _ => return Err(darling::Error::custom("expected string literal or path")),
         };
         Self::from_string(&expr_string)
     }
 
     fn from_string(value: &str) -> darling::Result<Self> {
-        Self::try_from(value).map_err(|_| darling::Error::custom("unknown type"))
+        let joined_allowed_types = crate::constants::ALL_RETURN_TYPES.join(", ");
+        Self::try_from(value).map_err(|_| {
+            darling::Error::custom(format!(
+                "unknown type `{value}`. Must be one of: {joined_allowed_types}",
+            ))
+        })
     }
 }
 

@@ -1,6 +1,6 @@
 use function_processing::{generate::func_call_tkn, parse::parse_functions};
-use gen_props::parse_props;
 use proc_macro::TokenStream;
+use props_processing::parse::parse_props;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput};
 use types_1c::ParamType;
@@ -8,7 +8,7 @@ use utils::{macros::tkn_err, param_ty_to_ffi_return, param_ty_to_ffi_set, str_li
 
 mod constants;
 mod function_processing;
-mod gen_props;
+mod props_processing;
 mod types_1c;
 mod utils;
 

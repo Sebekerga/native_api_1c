@@ -1,18 +1,11 @@
 use proc_macro::TokenStream;
 use quote::{spanned::Spanned, ToTokens};
 use syn::{
-    punctuated::Punctuated, Expr, Token, DataStruct, Ident,
+    punctuated::Punctuated, Expr, Token, DataStruct,
 };
-use crate::{utils::{macros::{tkn_err, tkn_err_inner}, convert_ty_to_param_type}, constants::{NAME_ATTR, NAME_RU_ATTR, READABLE_ATTR, WRITABLE_ATTR}, types_1c::ParamType};
 
-pub struct PropDesc {
-    pub ident: Ident,
-    pub name: String,
-    pub name_ru: String,
-    pub readable: bool,
-    pub writable: bool,
-    pub ty: ParamType,
-}
+use crate::{utils::{macros::{tkn_err, tkn_err_inner}, convert_ty_to_param_type}, constants::{NAME_ATTR, NAME_RU_ATTR, READABLE_ATTR, WRITABLE_ATTR}};
+use super::PropDesc;
 
 pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStream> {
 

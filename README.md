@@ -1,5 +1,20 @@
 >Гайд по использованию на русском языке можно посмотреть [здесь](https://infostart.ru/1c/articles/1920565/) и задать вопросы по использованию, но не оставляйте там комментарии об ошибках, т.к. там сложно это обсуждать. Лучше создайте issue в этом репозитории.
 
+# Disclaimer
+
+This is my personal project, so there are some things coming from this fact:
+- While I'm trying to implement everything in an idiomatic and 'pretty' way, sometimes I just want to see progress, so some cargo clippy warnings are ignored at times, but I always try to fix them later
+- There'll be weeks or even months of inactivity, because I'm occupied with other things
+- I'll try to help anyone, who opens issue or discussion, but I can't guarantee that I'll be able to do it in a timely manner
+
+## Contributing
+I'd be glad to see any contributions, but please, follow these rules:
+- If you want to add a feature, please, open an issue first, so we can discuss it. I don't want you to waste your time on something that I won't be accepted for one reason or another
+- If you want to fix a bug, better do the same, but if it's a small bug, you can just open a PR
+- If you want to help, but don't know what to do, you can look at issues with `help wanted` label, or just ask [in this Telegram chat](https://t.me/+2YFbh4up3y8wZmIy)
+
+# About
+
 Library for simple 1C:Enterprise platform Native API Component development, originates from findings of this [medigor/example-native-api-rs](https://github.com/medigor/example-native-api-rs)
 
 Crate is tested on Linux and Windows. It should work on MacOS as well, but it is not tested.

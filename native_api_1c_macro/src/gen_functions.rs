@@ -85,7 +85,7 @@ impl FromField for FuncDesc {
 }
 
 #[derive(FromMeta, Debug)]
-pub struct FuncHeadMeta {
+struct FuncHeadMeta {
     name: String,
     name_ru: String,
 }
@@ -97,7 +97,7 @@ pub struct FuncArgumentDesc {
 }
 
 #[derive(FromMeta, Debug)]
-pub struct FuncArgumentMeta {
+struct FuncArgumentMeta {
     ty: String,
     default: Option<Expr>,
     #[allow(dead_code)]
@@ -130,7 +130,7 @@ pub struct FuncReturnDesc {
 }
 
 #[derive(FromMeta, Debug)]
-pub struct FuncReturnMeta {
+struct FuncReturnMeta {
     ty: String,
     result: bool,
 }
@@ -185,13 +185,8 @@ pub fn parse_functions(struct_data: &DataStruct) -> Result<Vec<FuncDesc>, TokenS
 
     // iterate over methods
     for field in &struct_data.fields {
-        let fields_without_docs: Vec<&syn::Attribute> = field
+        let has_add_in_func_attr = field
             .attrs
-            .iter()
-            .filter(|attr| !attr.path().is_ident("doc"))
-            .collect();
-
-        let has_add_in_func_attr = fields_without_docs
             .iter()
             .any(|attr| attr.path().is_ident("add_in_func"));
         if !has_add_in_func_attr {

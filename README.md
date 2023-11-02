@@ -9,7 +9,7 @@ This is my personal project, so there are some things coming from this fact:
 
 ## Contributing
 I'd be glad to see any contributions, but please, follow these rules:
-- If you want to add a feature, please, open an issue first, so we can discuss it. I don't want you to waste your time on something that I won't be accepted for one reason or another
+- If you want to add a feature, please, open an issue first, so we can discuss it. I don't want you to waste your time on something that I won't be accepting for one reason or another
 - If you want to fix a bug, better do the same, but if it's a small bug, you can just open a PR
 - If you want to help, but don't know what to do, you can look at issues with `help wanted` label, or just ask [in this Telegram chat](https://t.me/+2YFbh4up3y8wZmIy)
 

@@ -1,4 +1,4 @@
-use gen_functions::{func_call_tkn, parse_functions};
+use function_processing::{generate::func_call_tkn, parse::parse_functions};
 use gen_props::parse_props;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -7,7 +7,7 @@ use types_1c::ParamType;
 use utils::{macros::tkn_err, param_ty_to_ffi_return, param_ty_to_ffi_set, str_literal_token};
 
 mod constants;
-mod gen_functions;
+mod function_processing;
 mod gen_props;
 mod types_1c;
 mod utils;

@@ -5,7 +5,7 @@ use syn::{Ident, Type};
 
 use crate::types_1c::ParamType;
 
-use self::macros::tkn_err;
+use self::macros::{tkn_err, tkn_err_inner};
 
 pub mod macros {
     macro_rules! tkn_err_inner {
@@ -22,6 +22,16 @@ pub mod macros {
 
     pub(crate) use tkn_err;
     pub(crate) use tkn_err_inner;
+}
+
+const IDENT_OPTION_ERR: &str = "Unable to get ident from option";
+
+pub fn ident_option_to_token_err(ident: Option<&Ident>) -> Result<&Ident, TokenStream> {
+    ident.ok_or(tkn_err_inner!(IDENT_OPTION_ERR, Span::call_site()))
+}
+
+pub fn ident_option_to_darling_err(ident: Option<&Ident>) -> Result<&Ident, darling::Error> {
+    ident.ok_or_else(|| darling::Error::custom(IDENT_OPTION_ERR))
 }
 
 pub fn convert_ty_to_param_type(ty: &Type, span: Span) -> Result<ParamType, TokenStream> {

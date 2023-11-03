@@ -1,87 +1,78 @@
+use darling::{FromField, FromMeta};
 use proc_macro::TokenStream;
-use quote::{spanned::Spanned, ToTokens};
-use syn::{
-    punctuated::Punctuated, Expr, Token, DataStruct,
+use syn::{Attribute, DataStruct};
+
+use crate::utils::{
+    convert_ty_to_param_type, ident_option_to_darling_err, ident_option_to_token_err,
+    macros::tkn_err_inner,
 };
 
-use crate::{utils::{macros::{tkn_err, tkn_err_inner}, convert_ty_to_param_type}, constants::{NAME_ATTR, NAME_RU_ATTR, READABLE_ATTR, WRITABLE_ATTR}};
 use super::PropDesc;
 
-pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStream> {
+impl FromField for PropDesc {
+    fn from_field(field: &syn::Field) -> darling::Result<Self> {
+        let field_ident = ident_option_to_darling_err(field.ident.as_ref())?;
 
-    let mut props = vec![];   
-
-    // iterate over props
-    for prop in &struct_data.fields {
-        let attr_without_docs: Vec<&syn::Attribute> = prop.attrs.iter().filter(|attr| !attr.path().is_ident("doc")).collect();
-        let Some(attr) = attr_without_docs.get(0) else { 
-            continue; 
+        let add_in_prop_attr: Vec<&Attribute> = field
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("add_in_func"))
+            .collect();
+        if add_in_prop_attr.is_empty() {
+            return Err(
+                darling::Error::custom("Field must have `add_in_prop` attribute")
+                    .with_span(&field_ident.clone()),
+            );
+        } else if add_in_prop_attr.len() > 1 {
+            return Err(
+                darling::Error::custom("Field can have only 1 `add_in_prop` attribute")
+                    .with_span(&field_ident.clone()),
+            );
         };
-        if !attr.path().is_ident("add_in_prop") {
+        let add_in_prop_attr = add_in_prop_attr[0];
+
+        let prop_meta = PropMeta::from_meta(&add_in_prop_attr.meta)?;
+
+        let ty = convert_ty_to_param_type(&field.ty, field_ident.span())
+            .map_err(|e| darling::Error::custom(e.to_string()).with_span(&field_ident.clone()))?;
+
+        Ok(PropDesc {
+            ident: field_ident.clone(),
+            name: prop_meta.name,
+            name_ru: prop_meta.name_ru,
+            readable: prop_meta.readable,
+            writable: prop_meta.writable,
+            ty,
+        })
+    }
+}
+
+#[derive(FromMeta, Debug)]
+pub struct PropMeta {
+    pub name: String,
+    pub name_ru: String,
+    pub readable: bool,
+    pub writable: bool,
+}
+
+pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStream> {
+    let mut props = vec![];
+
+    for field in &struct_data.fields {
+        let has_add_in_prop_attr = field
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("add_in_prop"));
+        if !has_add_in_prop_attr {
             continue;
         };
-        if attr_without_docs.len() > 1 {
-            return tkn_err!("AddIn fields can have 1 attribute at most", prop.__span());
-        }
-        let Some(prop_ident) = prop.ident.clone() else {
-            return tkn_err!("AddIn props must have a name", prop.__span());
-        };
 
-        let name_values: Punctuated<Expr, Token![,]> = attr
-            .parse_args_with(Punctuated::parse_terminated)
-            .map_err::<TokenStream, _>(|e| tkn_err_inner!(e.to_string(), attr.__span()))?;
-
-        let args = name_values
-            .iter()
-            .flat_map(|exp| {
-                let Expr::Assign(assign) = exp else { 
-                    return Some((exp.to_token_stream().to_string(), None, exp.__span())); 
-                };
-                let Expr::Lit(lit) = &*assign.right else { return None };
-                let syn::Lit::Str(str_lit) = &lit.lit else { return None };
-                Some((assign.left.to_token_stream().to_string(), Some(str_lit.value()), exp.__span()))
-            });
-        let Some(prop_name) = args
-            .clone()
-            .find(|(name, _, _)| name == NAME_ATTR) else {
-                return tkn_err!("AddIn prop must have a `name` argument: name = \"MyPropName\"", attr.__span());
-            };
-        let Some(prop_name) = prop_name.1 else {
-            return tkn_err!("AddIn prop argument `name` must be a string literal assignment: name = \"MyPropName\"", prop_name.2);
-        };
-
-        let Some(prop_name_ru) = args
-            .clone()
-            .find(|(name, _, _)| name == NAME_RU_ATTR) else {
-                return tkn_err!("AddIn prop must have a `name_ru` argument: name_ru = \"МоеСвойство\"", attr.__span());
-            };
-        let Some(prop_name_ru) = prop_name_ru.1 else {
-            return tkn_err!("AddIn prop argument `name_ru` must be a string literal assignment: name_ru = \"МоеСвойство\"", prop_name_ru.2);
-        };
-
-        let readable = args
-            .clone()
-            .find(|(name, _, _)| name == READABLE_ATTR)
-            .is_some();
-
-        let writable = args
-            .clone()
-            .find(|(name, _, _)| name == WRITABLE_ATTR)
-            .is_some();
-
-        if !readable && !writable {
-            return tkn_err!("AddIn prop must be either readable, writable or both", attr.__span());
-        }
-
-        props.push(PropDesc {
-            ident: prop_ident,
-            name: prop_name,
-            name_ru: prop_name_ru,
-            readable,
-            writable,
-            ty: convert_ty_to_param_type(&prop.ty, prop.__span())?,
-        });
-    };
+        let field_ident = ident_option_to_token_err(field.ident.as_ref())?;
+        props.push(PropDesc::from_field(field).map_err(|e| {
+            let new_e: TokenStream = tkn_err_inner!(e.to_string(), field_ident.span());
+            new_e
+        })?);
+    }
 
     Ok(props)
 }

@@ -1,6 +1,8 @@
 use darling::FromMeta;
 
-use crate::constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE};
+use crate::constants::{
+    BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE, UNTYPED_TYPE,
+};
 
 #[derive(Clone, Debug)]
 pub enum ParamType {
@@ -47,6 +49,7 @@ impl TryFrom<&str> for ParamType {
             STRING_TYPE => Ok(ParamType::String),
             DATE_TYPE => Ok(ParamType::Date),
             BLOB_TYPE => Ok(ParamType::Blob),
+            UNTYPED_TYPE => Ok(ParamType::SelfType),
             _ => Err(()),
         }
     }

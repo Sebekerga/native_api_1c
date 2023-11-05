@@ -49,24 +49,22 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for GetParamDefValueCollector {
                             quote! { value },
                             expr.into_token_stream(),
                         );
-                        this_get_param_def_value_body = quote! {
-                            #this_get_param_def_value_body
+                        this_get_param_def_value_body.extend(quote! {
                             if param_num == #i  {
                                 #value_setter;
                                 return true;
                             }
-                        }
+                        })
                     }
                     None => {}
                 }
             }
-            get_param_def_value_body = quote! {
-                #get_param_def_value_body
+            get_param_def_value_body.extend(quote! {
                 if method_num == #func_index {
                     #this_get_param_def_value_body
                     return false;
                 };
-            };
+            });
         }
 
         let find_method_definition = quote! {

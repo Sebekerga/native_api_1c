@@ -17,41 +17,34 @@ pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> TokenStream {
             _ => {
                 let ident = Ident::new(&format!("param_{}", counter), Span::call_site());
                 let param_ident_raw = Ident::new(&format!("{}_raw", ident), Span::call_site());
-                param_extract = quote! {
-                    #param_extract ref mut #param_ident_raw,
-                };
+                param_extract.extend(quote! { ref mut #param_ident_raw, });
                 ident
             }
         };
 
         let (param_pre_call, param_post_call) = gen_param_prep(param, &param_ident);
-        pre_call = quote! {
-            #pre_call
+        pre_call.extend(quote! {            
             #param_pre_call
-        };
-        post_call = quote! {
-            #post_call
+        });
+        post_call.extend(quote! {            
             #param_post_call
-        };
+        });
 
         match param.ty {
             ParamType::SelfType => {
-                func_call = quote! {
-                    #func_call
+                func_call.extend(quote! {                    
                     self,
-                }
+                })
             }
             _ => {
                 if param.out_param {
-                    func_call = quote! {
-                        #func_call
+                    func_call.extend(quote! {                        
                         #param_ident,
-                    };
+                    });
                 } else {
-                    func_call = quote! {
-                        #func_call
+                    func_call.extend(quote! {                        
                         #param_ident.clone().into(),
-                    };
+                    });
                 }
             }
         }
@@ -98,10 +91,9 @@ pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> TokenStream {
             }
         };
 
-        func_call = quote! {
-            #func_call
+        func_call.extend(quote! {            
             #value_setter;
-        };
+        });
     }
 
     func_call
@@ -119,109 +111,97 @@ fn gen_param_prep(
 
     match param.ty {
         ParamType::Bool => {
-            pre_call = quote! {
-                #pre_call
+            pre_call.extend(quote! {                
                 let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Bool(#param_ident)
                 = #param_ident_raw else {
                     return false;
                 };
-            };
+            });
         }
         ParamType::I32 => {
-            pre_call = quote! {
-                #pre_call
+            pre_call.extend(quote! {                
                 let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::I32(#param_ident)
                 = #param_ident_raw else {
                     return false;
                 };
-            };
+            });
         }
         ParamType::F64 => {
             if param.out_param {
-                pre_call = quote! {
-                    #pre_call
+                pre_call.extend(quote! {                    
                     let mut #param_ident_ref = match #param_ident_raw {
                         native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::F64(val) => *val,
                         native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::I32(val) => *val as f64,
                         _ => return false,
                     };
                     let #param_ident = &mut #param_ident_ref;
-                };
-                post_call = quote! {
-                    #post_call
+                });
+                post_call.extend(quote! {                    
                     *#param_ident_raw = native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::F64(*#param_ident);
-                };
+                });
             } else {
-                pre_call = quote! {
-                    #pre_call
+                pre_call.extend(quote! {                    
                     let #param_ident = match #param_ident_raw {
                         native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::F64(val) => *val,
                         native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::I32(val) => *val as f64,
                         _ => return false,
                     };
-                };
+                });
             }
         }
         ParamType::String => {
             if param.out_param {
                 let param_ident_str =
                     Ident::new(&format!("{}_str", param_ident), Span::call_site());
-                pre_call = quote! {
-                    #pre_call
+                pre_call.extend(quote! {                    
                     let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Str(#param_ident_ref)
                     = #param_ident_raw else {
                         return false;
                     };
                     let mut #param_ident_str = native_api_1c::native_api_1c_core::ffi::string_utils::from_os_string(&#param_ident_ref);
                     let #param_ident = &mut #param_ident_str;
-                };
-                post_call = quote! {
-                    #post_call
+                });
+                post_call.extend(quote! {                    
                     *#param_ident_ref = native_api_1c::native_api_1c_core::ffi::string_utils::os_string(&#param_ident);
-                };
+                });
             } else {
-                pre_call = quote! {
-                    #pre_call
+                pre_call.extend(quote! {                    
                     let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Str(#param_ident_ref)
                     = #param_ident_raw else {
                         return false;
                     };
                     let #param_ident = native_api_1c::native_api_1c_core::ffi::string_utils::from_os_string(&#param_ident_ref);
-                }
+                })
             }
         }
         ParamType::Date => {
             if param.out_param {
-                pre_call = quote! {
-                    #pre_call
+                pre_call.extend(quote! {                    
                     let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Date(#param_ident_ref)
                     = #param_ident_raw else {
                         return false;
                     };
                     let mut #param_ident: chrono::DateTime<chrono::FixedOffset> = #param_ident_ref.clone().into();
-                };
-                post_call = quote! {
-                    #post_call
+                });
+                post_call.extend(quote! {                    
                     *#param_ident_ref = #param_ident.into();
-                };
+                });
             } else {
-                pre_call = quote! {
-                    #pre_call
+                pre_call.extend(quote! {                    
                     let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Date(#param_ident)
                     = #param_ident_raw else {
                         return false;
                     };
-                };
+                });
             }
         }
         ParamType::Blob => {
-            pre_call = quote! {
-                #pre_call
+            pre_call.extend(quote! {                
                 let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Blob(#param_ident)
                 = #param_ident_raw else {
                     return false;
                 };
-            };
+            });
         }
         ParamType::SelfType => {}
     }

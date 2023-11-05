@@ -3,7 +3,10 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput};
 
-use function_processing::{generate::func_call_tkn, parse::parse_functions, ParamType, ReturnType};
+use function_processing::{
+    collectors::find_method::FindMethodCollector, generate::func_call_tkn, parse::parse_functions,
+    ParamType, ReturnType,
+};
 use props_processing::{generate::param_ty_to_ffi_set, parse::parse_props};
 use utils::{
     macros::{tkn_err, tkn_err_inner},
@@ -122,7 +125,10 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, dar
         }
     }
 
-    let mut find_func_body = quote! {};
+    let func_iter = functions.iter().enumerate();
+
+    let find_method_definition = func_iter.collect::<FindMethodCollector>().generated()?;
+
     let mut get_func_name_body = quote! {};
     let mut has_ret_val_body = quote! {};
     let mut get_n_params_body = quote! {};
@@ -252,12 +258,9 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, dar
                 #is_prop_writable_body
                 false
             }
+            #find_method_definition
             fn get_n_methods(&self) -> usize {
                 #number_of_func
-            }
-            fn find_method(&self, name: &[u16]) -> Option<usize> {
-                #find_func_body
-                None
             }
             fn get_method_name(&self, num: usize, alias: usize) -> Option<Vec<u16>> {
                 #get_func_name_body

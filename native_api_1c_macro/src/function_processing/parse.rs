@@ -99,8 +99,8 @@ impl FromField for FuncDesc {
             };
         };
 
-        let name_literal = str_literal_token(&func_meta.name, &field_ident)?;
-        let name_ru_literal = str_literal_token(&func_meta.name_ru, &field_ident)?;
+        let name_literal = str_literal_token(&func_meta.name, field_ident)?;
+        let name_ru_literal = str_literal_token(&func_meta.name_ru, field_ident)?;
 
         Ok(Self {
             ident: field_ident.to_owned(),

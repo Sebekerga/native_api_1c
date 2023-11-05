@@ -7,6 +7,7 @@ use crate::{
     constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE, UNTYPED_TYPE},
 };
 
+pub mod collectors;
 pub mod generate;
 pub mod parse;
 

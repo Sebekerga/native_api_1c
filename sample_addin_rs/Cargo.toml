@@ -10,5 +10,3 @@ crate-type = ["cdylib"]
 utf16_lit = "2.0"
 native_api_1c = { path = "../native_api_1c" }
 chrono = "0.4.26"
-
-[workspace]

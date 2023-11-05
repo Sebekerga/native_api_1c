@@ -1,8 +1,12 @@
 [workspace]
-members = ["native_api_1c", "native_api_1c_core", "native_api_1c_macro"]
+members = [
+    "native_api_1c",
+    "native_api_1c_core",
+    "native_api_1c_macro",
+    "sample_addin_rs",
+]
 
 [patch.crates-io]
 native_api_1c = { path = "native_api_1c" }
 native_api_1c_core = { path = "native_api_1c_core" }
 native_api_1c_macro = { path = "native_api_1c_macro" }
-sample_addin_rs = { path = "sample_addin_rs" }

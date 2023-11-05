@@ -61,8 +61,8 @@ pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, darling::E
             continue;
         };
 
-        let field_ident = ident_option_to_darling_err(field.ident.as_ref())?;
-        props.push(PropDesc::from_field(field)?);
+        let prop_desc = PropDesc::from_field(field)?;
+        props.push(prop_desc);
     }
 
     Ok(props)

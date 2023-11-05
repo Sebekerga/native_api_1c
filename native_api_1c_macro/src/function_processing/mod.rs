@@ -1,5 +1,5 @@
 use darling::FromMeta;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream};
 use syn::Expr;
 
 use crate::{
@@ -12,8 +12,13 @@ pub mod parse;
 
 pub struct FuncDesc {
     pub ident: Ident,
+
     pub name: String,
     pub name_ru: String,
+
+    pub name_literal: TokenStream,
+    pub name_ru_literal: TokenStream,
+
     pub params: Vec<FuncArgumentDesc>,
     pub return_value: ReturnTypeDesc,
 }

@@ -1,8 +1,7 @@
 use darling::{FromField, FromMeta};
-use proc_macro2::TokenStream;
 use syn::{Attribute, DataStruct};
 
-use crate::utils::{ident_option_to_darling_err, ident_option_to_token_err, macros::tkn_err_inner};
+use crate::utils::ident_option_to_darling_err;
 
 use super::{PropDesc, PropType};
 
@@ -50,7 +49,7 @@ pub struct PropMeta {
     pub writable: Option<()>,
 }
 
-pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStream> {
+pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, darling::Error> {
     let mut props = vec![];
 
     for field in &struct_data.fields {
@@ -62,11 +61,8 @@ pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStrea
             continue;
         };
 
-        let field_ident = ident_option_to_token_err(field.ident.as_ref())?;
-        props.push(PropDesc::from_field(field).map_err(|e| {
-            let new_e: TokenStream = tkn_err_inner!(e.to_string(), field_ident.span());
-            new_e
-        })?);
+        let field_ident = ident_option_to_darling_err(field.ident.as_ref())?;
+        props.push(PropDesc::from_field(field)?);
     }
 
     Ok(props)

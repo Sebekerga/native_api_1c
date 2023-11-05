@@ -4,7 +4,7 @@ use syn::Ident;
 
 use super::{FuncArgumentDesc, FuncDesc, ParamType, ReturnType};
 
-pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> Result<TokenStream, TokenStream> {
+pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> TokenStream {
     let func_ident = &func.ident;
     let mut param_extract = quote! {};
     let mut pre_call = quote! {};
@@ -104,7 +104,7 @@ pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> Result<TokenStr
         };
     }
 
-    Ok(func_call)
+    func_call
 }
 
 fn gen_param_prep(

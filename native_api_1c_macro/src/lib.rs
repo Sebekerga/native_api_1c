@@ -27,7 +27,13 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 fn derive_result(input: &DeriveInput) -> Result<TokenStream, TokenStream> {
     let extern_functions = build_extern_functions(input)?;
-    let impl_block = build_impl_block(input)?;
+    let impl_block = build_impl_block(input).map_err(|darling_error| {
+        let error_tokens = darling_error.write_errors();
+        let error_tokens = quote! {
+            compile_error!(#error_tokens);
+        };
+        error_tokens
+    })?;
 
     Ok(quote! {
         #impl_block
@@ -35,10 +41,10 @@ fn derive_result(input: &DeriveInput) -> Result<TokenStream, TokenStream> {
     })
 }
 
-fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, TokenStream> {
+fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, darling::Error> {
     let struct_ident = &input.ident;
     let syn::Data::Struct(struct_data) = &input.data else {
-        return tkn_err!("AddIn can only be derived for structs",struct_ident.span());
+        return tkn_err!("AddIn can only be derived for structs", &struct_ident.span());
     };
     let add_in_name_literal = str_literal_token(&struct_ident.to_string(), struct_ident)?;
 
@@ -86,12 +92,12 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
             let prop_settable: SettableTypes = (&prop.ty).try_into().map_err(|_| {
                 tkn_err_inner!(
                     "Incorrectly attempted to convert type to settable",
-                    prop.ident.span()
+                    &prop.ident.span()
                 )
             })?;
 
             let ffi_set_tkn =
-                param_ty_to_ffi_return(&prop_settable, quote! { val }, quote! {self.#prop_ident})?;
+                param_ty_to_ffi_return(&prop_settable, quote! { val }, quote! {self.#prop_ident});
             get_prop_val_body = quote! {
                 #get_prop_val_body
                 if num == #prop_index {
@@ -102,7 +108,7 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
         };
 
         if writable {
-            let prop_set_tkn = param_ty_to_ffi_set(&prop.ty, quote! { #prop_ident })?;
+            let prop_set_tkn = param_ty_to_ffi_set(&prop.ty, quote! { #prop_ident });
             set_prop_val_body = quote! {
                 #set_prop_val_body
                 if num == #prop_index {
@@ -135,11 +141,6 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
             .filter(|p| !matches!(p.ty, ParamType::SelfType))
             .count();
 
-        find_func_body = quote! {
-            #find_func_body
-            if native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_literal) == name { return Some(#func_index) };
-            if native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_ru_literal) == name { return Some(#func_index) };
-        };
         get_func_name_body = quote! {
             #get_func_name_body
             if num == #func_index && alias == 0 { return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_literal).into()) };
@@ -154,7 +155,7 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
             if num == #func_index { return #number_of_params };
         };
 
-        let call_proc = func_call_tkn(func, None)?;
+        let call_proc = func_call_tkn(func, None);
         call_as_proc_body = quote! {
             #call_as_proc_body
             if method_num == #func_index {
@@ -165,7 +166,7 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
 
         if has_ret_val {
             let return_val_ident = Ident::new("val", proc_macro2::Span::call_site());
-            let call_func = func_call_tkn(func, Some(&return_val_ident))?;
+            let call_func = func_call_tkn(func, Some(&return_val_ident));
             call_as_func_body = quote! {
                 #call_as_func_body
                 if method_num == #func_index {
@@ -182,14 +183,14 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
                     let prop_settable: SettableTypes = (&arg_desc.ty).try_into().map_err(|_| {
                         tkn_err_inner!(
                             "Incorrectly attempted to convert type to settable",
-                            func.ident.span()
+                            &func.ident.span()
                         )
                     })?;
                     let value_setter = param_ty_to_ffi_return(
                         &prop_settable,
                         quote! { value },
                         expr.into_token_stream(),
-                    )?;
+                    );
                     this_get_param_def_value_body = quote! {
                         #this_get_param_def_value_body
                         if param_num == #i  {

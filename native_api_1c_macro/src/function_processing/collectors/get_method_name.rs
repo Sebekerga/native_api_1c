@@ -27,8 +27,16 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for GetMethodNameCollector {
 
             get_func_name_body.extend(quote! {
                 #get_func_name_body
-                if num == #func_index && alias == 0 { return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_literal).into()) };
-                if num == #func_index { return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_ru_literal).into()) };
+                if num == #func_index && alias == 0 {
+                    return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(
+                        #name_literal).into()
+                    )
+                };
+                if num == #func_index {
+                    return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(
+                        #name_ru_literal).into()
+                    )
+                };
             });
         }
 

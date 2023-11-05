@@ -1,18 +1,24 @@
 use darling::FromMeta;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream};
 
 use crate::{
     common_generators::SettableTypes,
     constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE},
 };
 
+pub mod collectors;
 pub mod generate;
 pub mod parse;
 
 pub struct PropDesc {
     pub ident: Ident,
+
     pub name: String,
     pub name_ru: String,
+
+    pub name_literal: TokenStream,
+    pub name_ru_literal: TokenStream,
+
     pub readable: bool,
     pub writable: bool,
     pub ty: PropType,

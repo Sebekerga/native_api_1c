@@ -1,7 +1,7 @@
 use darling::{FromField, FromMeta};
 use syn::{Attribute, DataStruct};
 
-use crate::utils::ident_option_to_darling_err;
+use crate::utils::{ident_option_to_darling_err, str_literal_token};
 
 use super::{PropDesc, PropType};
 
@@ -29,10 +29,18 @@ impl FromField for PropDesc {
 
         let prop_meta = PropMeta::from_meta(&add_in_prop_attr.meta)?;
 
+        let name_literal = str_literal_token(&prop_meta.name, field_ident)?;
+        let name_ru_literal = str_literal_token(&prop_meta.name_ru, field_ident)?;
+
         Ok(PropDesc {
             ident: field_ident.clone(),
+
             name: prop_meta.name,
             name_ru: prop_meta.name_ru,
+
+            name_literal,
+            name_ru_literal,
+
             readable: prop_meta.readable.is_some(),
             writable: prop_meta.writable.is_some(),
             ty: prop_meta.ty,

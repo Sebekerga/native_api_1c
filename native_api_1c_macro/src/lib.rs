@@ -1,14 +1,10 @@
-use common_generators::{param_ty_to_ffi_return, SettableTypes};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
 use function_processing::{collectors::*, parse::parse_functions};
-use props_processing::{generate::param_ty_to_ffi_set, parse::parse_props};
-use utils::{
-    macros::{tkn_err, tkn_err_inner},
-    str_literal_token,
-};
+use props_processing::{collectors::*, parse::parse_props};
+use utils::{macros::tkn_err, str_literal_token};
 
 mod common_generators;
 mod constants;
@@ -51,78 +47,18 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, dar
     let props = parse_props(struct_data)?;
     let functions = parse_functions(struct_data)?;
 
-    let number_of_props = props.len();
-
-    let mut find_prop_body = quote! {};
-    let mut get_prop_name_body = quote! {};
-    let mut is_prop_readable_body = quote! {};
-    let mut is_prop_writable_body = quote! {};
-    let mut get_prop_val_body = quote! {};
-    let mut set_prop_val_body = quote! {};
-
-    for prop in &props {
-        let prop_ident = &prop.ident;
-        let name_literal = str_literal_token(&prop.name, struct_ident)?;
-        let name_ru_literal = str_literal_token(&prop.name_ru, struct_ident)?;
-        let readable = prop.readable;
-        let writable = prop.writable;
-        let prop_index = props.iter().position(|p| p.name == prop.name).unwrap();
-
-        find_prop_body = quote! {
-            #find_prop_body
-            if native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_literal) == name { return Some(#prop_index) };
-            if native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_ru_literal) == name { return Some(#prop_index) };
-        };
-        get_prop_name_body = quote! {
-            #get_prop_name_body
-            if num == #prop_index && alias == 0 { return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_literal).into()) };
-            if num == #prop_index { return Some(native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(#name_ru_literal).into()) };
-        };
-        is_prop_readable_body = quote! {
-            #is_prop_readable_body
-            if num == #prop_index { return #readable };
-        };
-        is_prop_writable_body = quote! {
-            #is_prop_writable_body
-            if num == #prop_index { return #writable };
-        };
-
-        if readable {
-            let prop_settable: SettableTypes = (&prop.ty).try_into().map_err(|_| {
-                tkn_err_inner!(
-                    "Incorrectly attempted to convert type to settable",
-                    &prop.ident.span()
-                )
-            })?;
-
-            let ffi_set_tkn =
-                param_ty_to_ffi_return(&prop_settable, quote! { val }, quote! {self.#prop_ident});
-            get_prop_val_body = quote! {
-                #get_prop_val_body
-                if num == #prop_index {
-                    #ffi_set_tkn;
-                    return true;
-                };
-            };
-        };
-
-        if writable {
-            let prop_set_tkn = param_ty_to_ffi_set(&prop.ty, quote! { #prop_ident });
-            set_prop_val_body = quote! {
-                #set_prop_val_body
-                if num == #prop_index {
-                    match val {
-                        #prop_set_tkn
-                        _ => return false,
-                    }
-                    return true;
-                };
-            };
-        }
-    }
+    let pi = props.iter().enumerate();
+    let prop_definitions = [
+        pi.clone().collect::<FindPropCollector>().release()?,
+        pi.clone().collect::<GetNPropsCollector>().release()?,
+        pi.clone().collect::<GetPropNameCollector>().release()?,
+        pi.clone().collect::<IsPropReadableCollector>().release()?,
+        pi.clone().collect::<IsPropWritableCollector>().release()?,
+        pi.clone().collect::<GetPropValCollector>().release()?,
+        pi.clone().collect::<SetPropValCollector>().release()?,
+    ];
 
     let fi = functions.iter().enumerate();
-
     let func_definitions = [
         fi.clone().collect::<FindMethodCollector>().release()?,
         fi.clone().collect::<GetMethodNameCollector>().release()?,
@@ -150,34 +86,10 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, dar
             fn register_extension_as(&mut self) -> &[u16] {
                 &utf16_lit::utf16_null!(#add_in_name_literal)
             }
-            fn get_n_props(&self) -> usize {
-                #number_of_props
-            }
-            fn find_prop(&self, name: &[u16]) -> Option<usize> {
-                #find_prop_body
-                None
-            }
-            fn get_prop_name(&self, num: usize, alias: usize) -> Option<Vec<u16>> {
-                #get_prop_name_body
-                None
-            }
-            fn get_prop_val(&self, num: usize, val: native_api_1c::native_api_1c_core::ffi::provided_types::ReturnValue) -> bool {
-                #get_prop_val_body
-                false
-            }
-            fn set_prop_val(&mut self, num: usize, val: &native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue) -> bool {
-                #set_prop_val_body
-                false
-            }
-            fn is_prop_readable(&self, num: usize) -> bool {
-                #is_prop_readable_body
-                false
-            }
-            fn is_prop_writable(&self, num: usize) -> bool {
-                #is_prop_writable_body
-                false
-            }
+
+            #(#prop_definitions)*
             #(#func_definitions)*
+
             fn set_locale(&mut self, loc: &[u16]) {
             }
             fn set_user_interface_language_code(&mut self, lang: &[u16]) {

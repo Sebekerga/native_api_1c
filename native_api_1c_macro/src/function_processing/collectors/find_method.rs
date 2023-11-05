@@ -3,7 +3,7 @@ use quote::quote;
 
 use crate::function_processing::FuncDesc;
 
-use super::empty_func_collector_error;
+use super::{empty_func_collector_error, FunctionCollector};
 
 pub struct FindMethodCollector {
     generated: Result<TokenStream, darling::Error>,
@@ -44,8 +44,8 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for FindMethodCollector {
     }
 }
 
-impl FindMethodCollector {
-    pub fn generated(self) -> Result<TokenStream, darling::Error> {
+impl FunctionCollector<'_> for FindMethodCollector {
+    fn release(self) -> Result<TokenStream, darling::Error> {
         self.generated
     }
 }

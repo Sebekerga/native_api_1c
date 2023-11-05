@@ -1,14 +1,9 @@
 use darling::{FromField, FromMeta};
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{
-    parse::{Parse, ParseBuffer},
-    Attribute, DataStruct, Expr,
-};
+use syn::{Attribute, DataStruct, Expr};
 
-use crate::{types_1c::ParamType, utils::macros::tkn_err};
-
-use super::{FuncArgumentDesc, FuncDesc};
+use super::{FuncArgumentDesc, FuncDesc, ParamType, ReturnType, ReturnTypeDesc};
 
 impl FromField for FuncDesc {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
@@ -68,7 +63,7 @@ impl FromField for FuncDesc {
             Some(return_meta) => FuncReturnDesc::try_from(return_meta)
                 .map_err(|_| darling::Error::custom("Invalid argument type"))?,
             None => FuncReturnDesc {
-                ty: None,
+                ty: ReturnType::None,
                 result: false,
             },
         };
@@ -77,13 +72,18 @@ impl FromField for FuncDesc {
             return Err(darling::Error::custom("AddIn functions must have bare `fn` type")
                 .with_span(&field.ident.clone().unwrap()));
         };
+
         if let Some(first_input) = bare_fn.inputs.first() {
-            let arg_token_stream: proc_macro::TokenStream = first_input.to_token_stream().into();
+            let arg_tkn_stream: proc_macro2::TokenStream = first_input.to_token_stream();
 
-            let reference: syn::TypeReference = syn::parse(arg_token_stream.clone())?;
-            let ident: syn::Ident = syn::parse(arg_token_stream.clone())?;
+            let reference: syn::TypeReference = syn::parse2(arg_tkn_stream.clone())?;
 
-            if ident == "Self" {
+            if arg_tkn_stream
+                .into_iter()
+                .filter(|t| t.to_string() == "Self")
+                .count()
+                == 1
+            {
                 params.insert(
                     0,
                     FuncArgumentDesc {
@@ -100,7 +100,10 @@ impl FromField for FuncDesc {
             name: func_meta.name,
             name_ru: func_meta.name_ru,
             params,
-            return_value: (return_value.ty, return_value.result),
+            return_value: ReturnTypeDesc {
+                ty: return_value.ty,
+                result: return_value.result,
+            },
         })
     }
 }
@@ -139,13 +142,13 @@ impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
 }
 
 pub struct FuncReturnDesc {
-    pub ty: Option<ParamType>,
+    pub ty: ReturnType,
     pub result: bool,
 }
 
 #[derive(FromMeta, Debug)]
 struct FuncReturnMeta {
-    ty: Option<ParamType>,
+    ty: Option<ReturnType>,
     result: Option<()>,
 }
 
@@ -154,7 +157,10 @@ impl TryFrom<FuncReturnMeta> for FuncReturnDesc {
 
     fn try_from(arg_meta: FuncReturnMeta) -> Result<Self, Self::Error> {
         Ok(Self {
-            ty: arg_meta.ty,
+            ty: match arg_meta.ty {
+                Some(ty) => ty,
+                None => ReturnType::None,
+            },
             result: arg_meta.result.is_some(),
         })
     }
@@ -204,7 +210,7 @@ pub fn parse_functions(struct_data: &DataStruct) -> Result<Vec<FuncDesc>, TokenS
         let func_desc_result = FuncDesc::from_field(field);
         let func_desc = match func_desc_result {
             Ok(func_desc) => func_desc,
-            Err(err) => return Err(err.write_errors().into()),
+            Err(err) => return Err(err.write_errors()),
         };
         functions_descriptions.push(func_desc);
     }

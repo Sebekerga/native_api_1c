@@ -1,23 +1,27 @@
-use function_processing::{generate::func_call_tkn, parse::parse_functions};
-use proc_macro::TokenStream;
-use props_processing::parse::parse_props;
+use common_generators::{param_ty_to_ffi_return, SettableTypes};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput};
-use types_1c::ParamType;
-use utils::{macros::tkn_err, param_ty_to_ffi_return, param_ty_to_ffi_set, str_literal_token};
 
+use function_processing::{generate::func_call_tkn, parse::parse_functions, ParamType, ReturnType};
+use props_processing::{generate::param_ty_to_ffi_set, parse::parse_props};
+use utils::{
+    macros::{tkn_err, tkn_err_inner},
+    str_literal_token,
+};
+
+mod common_generators;
 mod constants;
 mod function_processing;
 mod props_processing;
-mod types_1c;
 mod utils;
 
 #[proc_macro_derive(AddIn, attributes(add_in_prop, add_in_func, add_in_con, arg, returns))]
-pub fn derive(input: TokenStream) -> TokenStream {
+pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     match derive_result(&derive_input) {
-        Ok(tokens) => tokens,
-        Err(tokens) => tokens,
+        Ok(tokens) => tokens.into(),
+        Err(tokens) => tokens.into(),
     }
 }
 
@@ -28,8 +32,7 @@ fn derive_result(input: &DeriveInput) -> Result<TokenStream, TokenStream> {
     Ok(quote! {
         #impl_block
         #extern_functions
-    }
-    .into())
+    })
 }
 
 fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, TokenStream> {
@@ -80,8 +83,15 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
         };
 
         if readable {
+            let prop_settable: SettableTypes = (&prop.ty).try_into().map_err(|_| {
+                tkn_err_inner!(
+                    "Incorrectly attempted to convert type to settable",
+                    prop.ident.span()
+                )
+            })?;
+
             let ffi_set_tkn =
-                param_ty_to_ffi_return(&prop.ty, quote! { val }, quote! {self.#prop_ident})?;
+                param_ty_to_ffi_return(&prop_settable, quote! { val }, quote! {self.#prop_ident})?;
             get_prop_val_body = quote! {
                 #get_prop_val_body
                 if num == #prop_index {
@@ -117,7 +127,7 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
     for func in &functions {
         let name_literal = str_literal_token(&func.name, struct_ident)?;
         let name_ru_literal = str_literal_token(&func.name_ru, struct_ident)?;
-        let has_ret_val = func.return_value.0.is_some();
+        let has_ret_val = !matches!(func.return_value.ty, ReturnType::None);
         let func_index = functions.iter().position(|p| p.name == func.name).unwrap();
         let number_of_params = func
             .params
@@ -144,7 +154,7 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
             if num == #func_index { return #number_of_params };
         };
 
-        let call_proc = func_call_tkn(func, false)?;
+        let call_proc = func_call_tkn(func, None)?;
         call_as_proc_body = quote! {
             #call_as_proc_body
             if method_num == #func_index {
@@ -153,8 +163,9 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
             };
         };
 
-        if func.return_value.0.is_some() {
-            let call_func = func_call_tkn(func, true)?;
+        if has_ret_val {
+            let return_val_ident = Ident::new("val", proc_macro2::Span::call_site());
+            let call_func = func_call_tkn(func, Some(&return_val_ident))?;
             call_as_func_body = quote! {
                 #call_as_func_body
                 if method_num == #func_index {
@@ -165,11 +176,20 @@ fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, Tok
         }
 
         let mut this_get_param_def_value_body = quote! {};
-        for (i, p) in func.params.iter().enumerate() {
-            match &p.default {
+        for (i, arg_desc) in func.params.iter().enumerate() {
+            match &arg_desc.default {
                 Some(expr) => {
-                    let value_setter =
-                        param_ty_to_ffi_return(&p.ty, quote! { value }, expr.into_token_stream())?;
+                    let prop_settable: SettableTypes = (&arg_desc.ty).try_into().map_err(|_| {
+                        tkn_err_inner!(
+                            "Incorrectly attempted to convert type to settable",
+                            func.ident.span()
+                        )
+                    })?;
+                    let value_setter = param_ty_to_ffi_return(
+                        &prop_settable,
+                        quote! { value },
+                        expr.into_token_stream(),
+                    )?;
                     this_get_param_def_value_body = quote! {
                         #this_get_param_def_value_body
                         if param_num == #i  {

@@ -1,13 +1,10 @@
 use darling::{FromField, FromMeta};
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
 use syn::{Attribute, DataStruct};
 
-use crate::utils::{
-    convert_ty_to_param_type, ident_option_to_darling_err, ident_option_to_token_err,
-    macros::tkn_err_inner,
-};
+use crate::utils::{ident_option_to_darling_err, ident_option_to_token_err, macros::tkn_err_inner};
 
-use super::PropDesc;
+use super::{PropDesc, PropType};
 
 impl FromField for PropDesc {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
@@ -16,7 +13,7 @@ impl FromField for PropDesc {
         let add_in_prop_attr: Vec<&Attribute> = field
             .attrs
             .iter()
-            .filter(|attr| attr.path().is_ident("add_in_func"))
+            .filter(|attr| attr.path().is_ident("add_in_prop"))
             .collect();
         if add_in_prop_attr.is_empty() {
             return Err(
@@ -33,26 +30,24 @@ impl FromField for PropDesc {
 
         let prop_meta = PropMeta::from_meta(&add_in_prop_attr.meta)?;
 
-        let ty = convert_ty_to_param_type(&field.ty, field_ident.span())
-            .map_err(|e| darling::Error::custom(e.to_string()).with_span(&field_ident.clone()))?;
-
         Ok(PropDesc {
             ident: field_ident.clone(),
             name: prop_meta.name,
             name_ru: prop_meta.name_ru,
-            readable: prop_meta.readable,
-            writable: prop_meta.writable,
-            ty,
+            readable: prop_meta.readable.is_some(),
+            writable: prop_meta.writable.is_some(),
+            ty: prop_meta.ty,
         })
     }
 }
 
 #[derive(FromMeta, Debug)]
 pub struct PropMeta {
+    pub ty: PropType,
     pub name: String,
     pub name_ru: String,
-    pub readable: bool,
-    pub writable: bool,
+    pub readable: Option<()>,
+    pub writable: Option<()>,
 }
 
 pub fn parse_props(struct_data: &DataStruct) -> Result<Vec<PropDesc>, TokenStream> {

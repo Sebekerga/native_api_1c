@@ -1,16 +1,10 @@
-use proc_macro::TokenStream;
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::Ident;
 
-use crate::types_1c::ParamType;
+use super::{FuncArgumentDesc, FuncDesc, ParamType, ReturnType};
 
-use super::{FuncArgumentDesc, FuncDesc};
-
-pub fn func_call_tkn(
-    func: &FuncDesc,
-    return_value: bool,
-) -> Result<proc_macro2::TokenStream, TokenStream> {
+pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> Result<TokenStream, TokenStream> {
     let func_ident = &func.ident;
     let mut param_extract = quote! {};
     let mut pre_call = quote! {};
@@ -70,7 +64,7 @@ pub fn func_call_tkn(
         #pre_call
     };
 
-    let mut func_call = if func.return_value.1 {
+    let mut func_call = if func.return_value.result {
         quote! {
             #pre_call
             let call_result = (self.#func_ident)(#func_call);
@@ -85,25 +79,28 @@ pub fn func_call_tkn(
         }
     };
 
-    if return_value {
-        let value_setter = match &func.return_value.clone().0.unwrap() {
-            ParamType::Bool => quote! { val.set_bool(call_result.into()); },
-            ParamType::I32 => quote! { val.set_i32(call_result.into()); },
-            ParamType::F64 => quote! { val.set_f64(call_result.into()); },
-            ParamType::String => {
-                quote! { val.set_str(&native_api_1c::native_api_1c_core::ffi::string_utils::os_string(String::from(&call_result).as_str())); }
+    if let Some(set_to) = set_to {
+        let value_setter = match &func.return_value.ty {
+            ReturnType::Bool => quote! { #set_to.set_bool(call_result.into()); },
+            ReturnType::I32 => quote! { #set_to.set_i32(call_result.into()); },
+            ReturnType::F64 => quote! { #set_to.set_f64(call_result.into()); },
+            ReturnType::String => {
+                quote! { #set_to.set_str(&native_api_1c::native_api_1c_core::ffi::string_utils::os_string(String::from(&call_result).as_str())); }
             }
-            ParamType::Date => {
-                quote! { val.set_date(call_result.into()); }
+            ReturnType::Date => {
+                quote! { #set_to.set_date(call_result.into()); }
             }
-            ParamType::Blob => {
-                quote! { val.set_blob(&call_result); }
+            ReturnType::Blob => {
+                quote! { #set_to.set_blob(&call_result); }
             }
-            ParamType::SelfType => unreachable!("SelfType is never used in return params"),
+            ReturnType::None => {
+                quote! {}
+            }
         };
+
         func_call = quote! {
             #func_call
-            #value_setter
+            #value_setter;
         };
     }
 

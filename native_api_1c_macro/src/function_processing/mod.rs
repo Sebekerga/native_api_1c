@@ -24,6 +24,15 @@ pub struct FuncDesc {
     pub return_value: ReturnTypeDesc,
 }
 
+impl FuncDesc {
+    pub fn get_1c_params(&self) -> Vec<&FuncArgumentDesc> {
+        self.params
+            .iter()
+            .filter(|param| !matches!(param.ty, ParamType::SelfType))
+            .collect()
+    }
+}
+
 pub struct FuncArgumentDesc {
     pub ty: ParamType,
     pub default: Option<Expr>,

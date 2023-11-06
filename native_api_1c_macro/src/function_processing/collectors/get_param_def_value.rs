@@ -27,7 +27,7 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for GetParamDefValueCollector {
 
         for (func_index, func_desc) in iter {
             let mut this_get_param_def_value_body = quote! {};
-            for (i, arg_desc) in func_desc.params.iter().enumerate() {
+            for (i, arg_desc) in func_desc.get_1c_params().iter().enumerate() {
                 match &arg_desc.default {
                     Some(expr) => {
                         let prop_settable: SettableTypes =

@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::function_processing::{FuncDesc, ParamType};
+use crate::function_processing::FuncDesc;
 
 use super::{empty_func_collector_error, FunctionCollector};
 
@@ -22,11 +22,7 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for GetNParamsCollector {
         let mut get_n_params_body = TokenStream::new();
 
         for (func_index, func_desc) in iter {
-            let number_of_params = func_desc
-                .params
-                .iter()
-                .filter(|p| !matches!(p.ty, ParamType::SelfType))
-                .count();
+            let number_of_params = func_desc.get_1c_params().len();
             get_n_params_body.extend(quote! {
                 #get_n_params_body
                 if num == #func_index { return #number_of_params };

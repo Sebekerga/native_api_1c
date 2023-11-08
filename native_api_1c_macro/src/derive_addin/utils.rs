@@ -11,7 +11,9 @@ pub mod macros {
 
     macro_rules! tkn_err {
         ($str:expr, $span:expr) => {
-            Err(crate::utils::macros::tkn_err_inner!($str, $span))
+            Err(crate::derive_addin::utils::macros::tkn_err_inner!(
+                $str, $span
+            ))
         };
     }
 

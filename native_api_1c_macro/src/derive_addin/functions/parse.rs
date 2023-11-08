@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{Attribute, DataStruct, Expr};
 
-use crate::utils::{ident_option_to_darling_err, str_literal_token};
+use crate::derive_addin::utils::{ident_option_to_darling_err, str_literal_token};
 
 use super::{FuncArgumentDesc, FuncDesc, ParamType, ReturnType, ReturnTypeDesc};
 
@@ -188,13 +188,14 @@ impl From<ErrorConvertingMeta> for darling::Error {
     fn from(err: ErrorConvertingMeta) -> Self {
         match err {
             ErrorConvertingMeta::InvalidTypeForParam(ty) => {
-                let joined_allowed_types = crate::constants::ALL_ARG_TYPES.join(", ");
+                let joined_allowed_types = crate::derive_addin::constants::ALL_ARG_TYPES.join(", ");
                 darling::Error::custom(format!(
                     "Invalid type: `{ty}`. Must be one of: {joined_allowed_types}"
                 ))
             }
             ErrorConvertingMeta::InvalidTypeForReturn(ty) => {
-                let joined_allowed_types = crate::constants::ALL_RETURN_TYPES.join(", ");
+                let joined_allowed_types =
+                    crate::derive_addin::constants::ALL_RETURN_TYPES.join(", ");
                 darling::Error::custom(format!(
                     "Invalid type: `{ty}`. Must be one of: {joined_allowed_types}"
                 ))

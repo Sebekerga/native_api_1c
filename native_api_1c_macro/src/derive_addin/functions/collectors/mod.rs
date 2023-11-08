@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 
 use super::FuncDesc;
-use crate::utils::macros::tkn_err_inner;
+use crate::derive_addin::utils::macros::tkn_err_inner;
 
 pub mod call_as_func;
 pub mod call_as_proc;

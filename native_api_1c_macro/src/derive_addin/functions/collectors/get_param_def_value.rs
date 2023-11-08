@@ -1,9 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{
+use crate::derive_addin::{
     common_generators::{param_ty_to_ffi_return, SettableTypes},
-    function_processing::FuncDesc,
+    functions::FuncDesc,
     utils::macros::tkn_err_inner,
 };
 

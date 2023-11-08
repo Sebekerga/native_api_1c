@@ -1,15 +1,15 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::props_processing::PropDesc;
+use crate::derive_addin::props::PropDesc;
 
 use super::{empty_prop_collector_error, PropCollector};
 
-pub struct IsPropWritableCollector {
+pub struct IsPropReadableCollector {
     generated: Result<TokenStream, darling::Error>,
 }
 
-impl Default for IsPropWritableCollector {
+impl Default for IsPropReadableCollector {
     fn default() -> Self {
         Self {
             generated: Err(empty_prop_collector_error()),
@@ -17,20 +17,21 @@ impl Default for IsPropWritableCollector {
     }
 }
 
-impl<'a> FromIterator<(usize, &'a PropDesc)> for IsPropWritableCollector {
+impl<'a> FromIterator<(usize, &'a PropDesc)> for IsPropReadableCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a PropDesc)>>(iter: T) -> Self {
-        let mut is_prop_writable_body = TokenStream::new();
+        let mut is_prop_readable_body = TokenStream::new();
 
         for (prop_index, prop_desc) in iter {
-            let writable = prop_desc.writable;
-            is_prop_writable_body.extend(quote! {
-                if num == #prop_index { return #writable };
+            let readable = prop_desc.readable;
+
+            is_prop_readable_body.extend(quote! {
+                if num == #prop_index { return #readable };
             });
         }
 
         let _definition = quote! {
-            fn is_prop_writable(&self, num: usize) -> bool {
-                #is_prop_writable_body
+            fn is_prop_readable(&self, num: usize) -> bool {
+                #is_prop_readable_body
                 false
             }
         };
@@ -41,7 +42,7 @@ impl<'a> FromIterator<(usize, &'a PropDesc)> for IsPropWritableCollector {
     }
 }
 
-impl PropCollector<'_> for IsPropWritableCollector {
+impl PropCollector<'_> for IsPropReadableCollector {
     fn release(self) -> Result<TokenStream, darling::Error> {
         self.generated
     }

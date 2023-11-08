@@ -1,7 +1,7 @@
 use darling::{FromField, FromMeta};
 use syn::{Attribute, DataStruct};
 
-use crate::utils::{ident_option_to_darling_err, str_literal_token};
+use crate::derive_addin::utils::{ident_option_to_darling_err, str_literal_token};
 
 use super::{PropDesc, PropType};
 

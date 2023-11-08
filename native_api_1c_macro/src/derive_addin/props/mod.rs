@@ -1,7 +1,7 @@
 use darling::FromMeta;
 use proc_macro2::{Ident, TokenStream};
 
-use crate::{
+use crate::derive_addin::{
     common_generators::SettableTypes,
     constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE},
 };
@@ -51,7 +51,7 @@ impl FromMeta for PropType {
     }
 
     fn from_string(value: &str) -> darling::Result<Self> {
-        let joined_allowed_types = crate::constants::ALL_ARG_TYPES.join(", ");
+        let joined_allowed_types = crate::derive_addin::constants::ALL_ARG_TYPES.join(", ");
         Self::try_from(value).map_err(|_| {
             darling::Error::custom(format!(
                 "unknown type `{value}`. Must be one of: {joined_allowed_types}",

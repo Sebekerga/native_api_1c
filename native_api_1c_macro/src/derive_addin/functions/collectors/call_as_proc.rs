@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::function_processing::{generate::func_call_tkn, FuncDesc};
+use crate::derive_addin::functions::{generate::func_call_tkn, FuncDesc};
 
 use super::{empty_func_collector_error, FunctionCollector};
 

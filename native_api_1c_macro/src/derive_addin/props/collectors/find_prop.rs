@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::props_processing::PropDesc;
+use crate::derive_addin::props::PropDesc;
 
 use super::{empty_prop_collector_error, PropCollector};
 

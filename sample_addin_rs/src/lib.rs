@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use native_api_1c::{native_api_1c_core::ffi::connection::Connection, native_api_1c_macro::AddIn};
+use native_api_1c::{
+    native_api_1c_core::ffi::connection::Connection,
+    native_api_1c_macro::{extern_functions, AddIn},
+};
 
 #[derive(AddIn)]
 pub struct MyAddIn {
@@ -39,8 +42,8 @@ pub struct MyAddIn {
     private_field: i32,
 }
 
-impl MyAddIn {
-    pub fn new() -> Self {
+impl Default for MyAddIn {
+    fn default() -> Self {
         Self {
             connection: Arc::new(None),
             some_prop: 0,
@@ -50,7 +53,9 @@ impl MyAddIn {
             private_field: 100,
         }
     }
+}
 
+impl MyAddIn {
     fn my_function_inner(&self, arg: i32, arg_maybe_default: i64) -> Result<i32, ()> {
         Ok(self.protected_prop
             + self.some_prop
@@ -61,6 +66,10 @@ impl MyAddIn {
 
     fn my_procedure_inner(&mut self) -> String {
         self.protected_prop += 1;
-        format!("")
+        "Some string from rust".to_string()
     }
+}
+
+extern_functions! {
+    MyAddIn::default(),
 }

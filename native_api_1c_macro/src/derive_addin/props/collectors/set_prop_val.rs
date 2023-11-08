@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::props_processing::{generate::param_ty_to_ffi_set, PropDesc};
+use crate::derive_addin::props::{generate::param_ty_to_ffi_set, PropDesc};
 
 use super::{empty_prop_collector_error, PropCollector};
 

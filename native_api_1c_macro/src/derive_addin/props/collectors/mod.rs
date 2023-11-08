@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 
 use super::PropDesc;
-use crate::utils::macros::tkn_err_inner;
+use crate::derive_addin::utils::macros::tkn_err_inner;
 
 pub mod find_prop;
 pub mod get_n_props;

@@ -1,37 +1,36 @@
 use std::sync::Arc;
 
-use native_api_1c::{native_api_1c_core::ffi::connection::Connection, native_api_1c_macro::AddIn};
+use native_api_1c::{
+    native_api_1c_core::ffi::connection::Connection,
+    native_api_1c_macro::{extern_functions, AddIn},
+};
 
 #[derive(AddIn)]
-pub struct MyAddIn {
+pub struct SampleAddIn {
     /// connection with 1C, used for calling events
     /// Arc is used to allow multiple threads to access the connection
     #[add_in_con]
     connection: Arc<Option<&'static Connection>>,
 
     /// Property, readable and writable from 1C
-    #[add_in_prop(name = "MyProp", name_ru = "МоеСвойство", readable, writable)]
+    #[add_in_prop(ty = Int, name = "MyProp", name_ru = "МоеСвойство", readable, writable)]
     pub some_prop: i32,
 
     /// Property, readable from 1C but not writable
-    #[add_in_prop(name = "ProtectedProp", name_ru = "ЗащищенноеСвойство", readable)]
+    #[add_in_prop(ty = Int, name = "ProtectedProp", name_ru = "ЗащищенноеСвойство", readable)]
     pub protected_prop: i32,
-
-    /// функция, принимающая один или два аргумента и возвращающая результат
-    /// в 1С можно вызвать как:
-    ///  ОбъектКомпоненты.МояФункция(10, 15); // 2й аргумент = 15
-    ///  ОбъектКомпоненты.МояФункция(10);     // 2й аргумент = 12 (значение по умолчанию)
-    /// Если функция возвращает ошибку, но не паника, то в 1С будет вызвано исключение
 
     /// Function, taking one or two arguments and returning a result
     /// In 1C it can be called as:
+    /// ```bsl
     ///  ComponentObject.MyFunction(10, 15); // 2nd argument = 15
     ///  ComponentObject.MyFunction(10);     // 2nd argument = 12 (default value)
+    /// ```
     /// If function returns an error, but does not panic, then 1C will throw an exception
     #[add_in_func(name = "MyFunction", name_ru = "МояФункция")]
-    #[arg(Int)]
-    #[arg(Int, default = 12)]
-    #[returns(Int, result)]
+    #[arg(ty = Int)]
+    #[arg(ty = Int, default = 12)]
+    #[returns(ty = Int, result)]
     pub my_function: fn(&Self, i32, i64) -> Result<i32, ()>,
 
     /// Function, taking no arguments and returning nothing
@@ -42,8 +41,8 @@ pub struct MyAddIn {
     private_field: i32,
 }
 
-impl MyAddIn {
-    pub fn new() -> Self {
+impl Default for SampleAddIn {
+    fn default() -> Self {
         Self {
             connection: Arc::new(None),
             some_prop: 0,
@@ -53,7 +52,9 @@ impl MyAddIn {
             private_field: 100,
         }
     }
+}
 
+impl SampleAddIn {
     fn my_function_inner(&self, arg: i32, arg_maybe_default: i64) -> Result<i32, ()> {
         Ok(self.protected_prop
             + self.some_prop
@@ -63,10 +64,14 @@ impl MyAddIn {
     }
 
     fn my_procedure_inner(&mut self) {
-        self.protected_prop += 1;
+        self.protected_prop += 10;
     }
 }
 
+extern_functions! {
+    SampleAddIn::default(),
+}
+
 fn main() {
-    let _add_in = MyAddIn::new();
+    let _add_in = SampleAddIn::default();
 }

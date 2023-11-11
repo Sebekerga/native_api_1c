@@ -9,8 +9,8 @@ pub struct MyAddIn {
     connection: Arc<Option<&'static Connection>>,
 
     #[add_in_func(name = "MyFunction", name_ru = "МояФункция")]
-    #[arg(Date, default = "2021-01-01T00:00:00+00:00")]
-    #[returns(Date)]
+    #[arg(ty = Date, default = "2021-01-01T00:00:00+00:00")]
+    #[returns(ty = Date)]
     pub my_function:
         fn(&Self, chrono::DateTime<chrono::FixedOffset>) -> chrono::DateTime<chrono::FixedOffset>,
 }

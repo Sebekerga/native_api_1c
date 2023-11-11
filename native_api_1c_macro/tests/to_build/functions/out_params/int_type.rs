@@ -9,21 +9,21 @@ pub struct MyAddIn {
     connection: Arc<Option<&'static Connection>>,
 
     #[add_in_func(name = "MyFunctionMut", name_ru = "МояФункцияМут")]
-    #[arg(Int, as_in)]
-    #[arg(Int, as_out)]
-    #[returns(Bool)]
+    #[arg(ty = Int, as_in)]
+    #[arg(ty = Int, as_out)]
+    #[returns(ty = Bool)]
     pub my_function_mut: fn(&mut Self, i32, &mut i32) -> bool,
 
     #[add_in_func(name = "MyFunctionRef", name_ru = "МояФункцияРеф")]
-    #[arg(Int, as_in)]
-    #[arg(Int, as_out)]
-    #[returns(Bool)]
+    #[arg(ty = Int, as_in)]
+    #[arg(ty = Int, as_out)]
+    #[returns(ty = Bool)]
     pub my_function_ref: fn(&Self, i32, &mut i32) -> bool,
 
     #[add_in_func(name = "MyFunctionNoRef", name_ru = "МояФункцияБезРеф")]
-    #[arg(Int, as_in)]
-    #[arg(Int, as_out)]
-    #[returns(Bool)]
+    #[arg(ty = Int, as_in)]
+    #[arg(ty = Int, as_out)]
+    #[returns(ty = Bool)]
     pub my_function_no_ref: fn(i32, &mut i32) -> bool,
 }
 

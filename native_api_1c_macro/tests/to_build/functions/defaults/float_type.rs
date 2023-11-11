@@ -9,8 +9,8 @@ pub struct MyAddIn {
     connection: Arc<Option<&'static Connection>>,
 
     #[add_in_func(name = "MyFunction", name_ru = "МояФункция")]
-    #[arg(Float, default = 0.0)]
-    #[returns(Float)]
+    #[arg(ty = Float, default = 0.0)]
+    #[returns(ty = Float)]
     pub my_function: fn(&Self, f64) -> f64,
 }
 

@@ -8,32 +8,32 @@ pub struct MyAddIn {
     #[add_in_con]
     connection: Arc<Option<&'static Connection>>,
 
-    #[add_in_prop(name = "prp_RW_str", name_ru = "свств_RW_str", readable, writable)]
+    #[add_in_prop(ty = Str, name = "prp_RW_str", name_ru = "свств_RW_str", readable, writable)]
     pub str_prop_rw: String,
-    #[add_in_prop(name = "prp_R_str", name_ru = "свств_R_str", readable)]
+    #[add_in_prop(ty = Str, name = "prp_R_str", name_ru = "свств_R_str", readable)]
     pub str_prop_r: String,
-    #[add_in_prop(name = "prp_W_str", name_ru = "свств_W_str", writable)]
+    #[add_in_prop(ty = Str, name = "prp_W_str", name_ru = "свств_W_str", writable)]
     pub str_prop_w: String,
 
-    #[add_in_prop(name = "prp_RW_int", name_ru = "свств_RW_int", readable, writable)]
+    #[add_in_prop(ty = Int, name = "prp_RW_int", name_ru = "свств_RW_int", readable, writable)]
     pub int_prop_rw: i32,
-    #[add_in_prop(name = "prp_R_int", name_ru = "свств_R_int", readable)]
+    #[add_in_prop(ty = Int, name = "prp_R_int", name_ru = "свств_R_int", readable)]
     pub int_prop_r: i32,
-    #[add_in_prop(name = "prp_W_int", name_ru = "свств_W_int", writable)]
+    #[add_in_prop(ty = Int, name = "prp_W_int", name_ru = "свств_W_int", writable)]
     pub int_prop_w: i32,
 
-    #[add_in_prop(name = "prp_RW_float", name_ru = "свств_RW_float", readable, writable)]
+    #[add_in_prop(ty = Float, name = "prp_RW_float", name_ru = "свств_RW_float", readable, writable)]
     pub float_prop_rw: f64,
-    #[add_in_prop(name = "prp_R_float", name_ru = "свств_R_float", readable)]
+    #[add_in_prop(ty = Float, name = "prp_R_float", name_ru = "свств_R_float", readable)]
     pub float_prop_r: f64,
-    #[add_in_prop(name = "prp_W_float", name_ru = "свств_W_float", writable)]
+    #[add_in_prop(ty = Float, name = "prp_W_float", name_ru = "свств_W_float", writable)]
     pub float_prop_w: f64,
 
-    #[add_in_prop(name = "prp_RW_bool", name_ru = "свств_RW_bool", readable, writable)]
+    #[add_in_prop(ty = Bool, name = "prp_RW_bool", name_ru = "свств_RW_bool", readable, writable)]
     pub bool_prop_rw: bool,
-    #[add_in_prop(name = "prp_R_bool", name_ru = "свств_R_bool", readable)]
+    #[add_in_prop(ty = Bool, name = "prp_R_bool", name_ru = "свств_R_bool", readable)]
     pub bool_prop_r: bool,
-    #[add_in_prop(name = "prp_W_bool", name_ru = "свств_W_bool", writable)]
+    #[add_in_prop(ty = Bool, name = "prp_W_bool", name_ru = "свств_W_bool", writable)]
     pub bool_prop_w: bool,
 }
 

@@ -11,8 +11,7 @@ pub struct MyAddIn {
     #[add_in_func(name = "MyFunction", name_ru = "МояФункция")]
     #[arg(ty = Date, default = "2021-01-01T00:00:00+00:00")]
     #[returns(ty = Date)]
-    pub my_function:
-        fn(&Self, chrono::DateTime<chrono::FixedOffset>) -> chrono::DateTime<chrono::FixedOffset>,
+    pub my_function: fn(&Self, chrono::NaiveDateTime) -> chrono::NaiveDateTime,
 }
 
 impl MyAddIn {
@@ -23,10 +22,7 @@ impl MyAddIn {
         }
     }
 
-    fn my_function_inner(
-        &self,
-        arg: chrono::DateTime<chrono::FixedOffset>,
-    ) -> chrono::DateTime<chrono::FixedOffset> {
+    fn my_function_inner(&self, arg: chrono::NaiveDateTime) -> chrono::NaiveDateTime {
         arg
     }
 }

@@ -81,7 +81,7 @@ pub fn func_call_tkn(func: &FuncDesc, set_to: Option<&Ident>) -> TokenStream {
                 quote! { #set_to.set_str(&native_api_1c::native_api_1c_core::ffi::string_utils::os_string(String::from(&call_result).as_str())); }
             }
             ReturnType::Date => {
-                quote! { #set_to.set_date(call_result.into()); }
+                quote! { #set_to.set_date(native_api_1c::native_api_1c_core::ffi::provided_types::Tm::from(&call_result)); }
             }
             ReturnType::Blob => {
                 quote! { #set_to.set_blob(&call_result); }
@@ -181,17 +181,26 @@ fn gen_param_prep(
                     = #param_ident_raw else {
                         return false;
                     };
-                    let mut #param_ident: chrono::DateTime<chrono::FixedOffset> = #param_ident_ref.clone().into();
+                    let #param_ident = chrono::NaiveDateTime::try_from(&#param_ident_ref.clone());
+                    if #param_ident.is_err() {
+                        return false;
+                    }
+                    let mut #param_ident = #param_ident.unwrap();
                 });
                 post_call.extend(quote! {                    
                     *#param_ident_ref = #param_ident.into();
                 });
             } else {
                 pre_call.extend(quote! {                    
-                    let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Date(#param_ident)
+                    let native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Date(#param_ident_ref)
                     = #param_ident_raw else {
                         return false;
                     };
+                    let #param_ident = chrono::NaiveDateTime::try_from(&#param_ident_ref.clone());
+                    if #param_ident.is_err() {
+                        return false;
+                    }
+                    let #param_ident = #param_ident.unwrap();
                 });
             }
         }

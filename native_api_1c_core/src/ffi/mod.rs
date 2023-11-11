@@ -106,6 +106,9 @@ unsafe extern "system" fn destroy<T: AddInWrapper>(
     drop(comp);
 }
 
+/// # Safety
+/// `component` must be a valid pointer to a `Component` from GetClassObject call
+/// `addin` must be a valid `AddInWrapper` instance
 pub unsafe fn create_component<T: AddInWrapper>(
     component: *mut *mut c_void,
     addin: T,
@@ -140,6 +143,8 @@ pub unsafe fn create_component<T: AddInWrapper>(
     1
 }
 
+/// # Safety
+/// `component` must be a valid pointer to a `Component` from DestroyObject call
 pub unsafe fn destroy_component(component: *mut *mut c_void) -> c_long {
     #[repr(C)]
     struct ComponentWrapper {

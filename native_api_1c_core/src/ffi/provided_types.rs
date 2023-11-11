@@ -1,9 +1,10 @@
-use chrono::{Datelike, Timelike};
 use std::{
     ffi::{c_int, c_void},
     ptr,
     slice::from_raw_parts,
 };
+
+use chrono::{Datelike, Timelike};
 
 use super::memory_manager::{AllocationError, MemoryManager};
 
@@ -39,89 +40,38 @@ pub struct Tm {
     pub zone: std::ffi::c_char,
 }
 
-impl From<chrono::DateTime<chrono::FixedOffset>> for Tm {
-    fn from(dt: chrono::DateTime<chrono::FixedOffset>) -> Self {
+impl TryFrom<&Tm> for chrono::NaiveDateTime {
+    type Error = ();
+
+    fn try_from(value: &Tm) -> Result<Self, Self::Error> {
+        chrono::NaiveDate::from_ymd_opt(
+            1900 + value.year,
+            (1 + value.mon) as u32,
+            (value.mday) as u32,
+        )
+        .ok_or(())?
+        .and_hms_opt(value.hour as u32, value.min as u32, value.sec as u32)
+        .ok_or(())
+    }
+}
+
+impl From<&chrono::NaiveDateTime> for Tm {
+    fn from(value: &chrono::NaiveDateTime) -> Self {
         Self {
-            sec: dt.second() as c_int,
-            min: dt.minute() as c_int,
-            hour: dt.hour() as c_int,
-            mday: dt.day() as c_int,
-            mon: dt.month() as c_int,
-            year: dt.year() as c_int,
-            wday: dt.weekday().num_days_from_sunday() as c_int,
-            yday: dt.ordinal() as c_int,
-            isdst: dt.timestamp() as c_int,
+            sec: value.time().second() as c_int,
+            min: value.time().minute() as c_int,
+            hour: value.time().hour() as c_int,
+            mday: value.date().day() as c_int,
+            mon: value.date().month0() as c_int,
+            year: value.date().year() as c_int - 1900,
+            wday: value.date().weekday().num_days_from_sunday() as c_int,
+            yday: value.ordinal0() as c_int,
+            isdst: 0,
             #[cfg(target_family = "unix")]
-            gmtoff: dt.offset().fix().local_minus_utc() as std::ffi::c_long,
+            gmtoff: 0,
             #[cfg(target_family = "unix")]
-            zone: dt.offset().to_string().into_bytes()[0] as std::ffi::c_char,
+            zone: 0,
         }
-    }
-}
-
-impl From<&Tm> for chrono::DateTime<chrono::FixedOffset> {
-    fn from(tm: &Tm) -> Self {
-        // The year begins with the year 1900. For example, 2023 == 123
-        // The month starts at 0
-        let Some(naive_date) = chrono::NaiveDate::from_ymd_opt(
-            tm.year + 1900,
-            tm.mon as u32 + 1,
-            tm.mday as u32,
-        ) else {
-            return chrono::DateTime::default();
-        };
-        let Some(naive_time) = chrono::NaiveTime::from_hms_opt(
-            tm.hour as u32,
-            tm.min as u32,
-            tm.sec as u32,
-        ) else {
-            return chrono::DateTime::default();
-        };
-        #[cfg(target_family = "unix")]
-        let Some(offset) = chrono::FixedOffset::east_opt(tm.gmtoff as i32) else {
-            return chrono::DateTime::default();
-        };
-        #[cfg(target_family = "windows")]
-        let Some(offset) = chrono::FixedOffset::east_opt(0) else {
-            return chrono::DateTime::default();
-        };
-        chrono::DateTime::from_utc(
-            chrono::NaiveDateTime::new(naive_date, naive_time),
-            offset,
-        )
-    }
-}
-
-impl From<Tm> for chrono::DateTime<chrono::FixedOffset> {
-    fn from(tm: Tm) -> Self {
-        // The year begins with the year 1900. For example, 2023 == 123
-        // The month starts at 0
-        let Some(naive_date) = chrono::NaiveDate::from_ymd_opt(
-            tm.year + 1900,
-            tm.mon as u32 + 1,
-            tm.mday as u32,
-        ) else {
-            return chrono::DateTime::default();
-        };
-        let Some(naive_time) = chrono::NaiveTime::from_hms_opt(
-            tm.hour as u32,
-            tm.min as u32,
-            tm.sec as u32,
-        ) else {
-            return chrono::DateTime::default();
-        };
-        #[cfg(target_family = "unix")]
-        let Some(offset) = chrono::FixedOffset::east_opt(tm.gmtoff as i32) else {
-            return chrono::DateTime::default();
-        };
-        #[cfg(target_family = "windows")]
-        let Some(offset) = chrono::FixedOffset::east_opt(0) else {
-            return chrono::DateTime::default();
-        };
-        chrono::DateTime::from_utc(
-            chrono::NaiveDateTime::new(naive_date, naive_time),
-            offset,
-        )
     }
 }
 

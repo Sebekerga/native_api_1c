@@ -6,18 +6,18 @@ use native_api_1c::{
 };
 
 #[derive(AddIn)]
-pub struct MyAddIn {
+pub struct SampleAddIn {
     /// connection with 1C, used for calling events
     /// Arc is used to allow multiple threads to access the connection
     #[add_in_con]
     connection: Arc<Option<&'static Connection>>,
 
     /// Property, readable and writable from 1C
-    #[add_in_prop(ty = Int,name = "MyProp", name_ru = "МоеСвойство", readable, writable)]
+    #[add_in_prop(ty = Int, name = "MyProp", name_ru = "МоеСвойство", readable, writable)]
     pub some_prop: i32,
 
     /// Property, readable from 1C but not writable
-    #[add_in_prop(ty = Int,name = "ProtectedProp", name_ru = "ЗащищенноеСвойство", readable)]
+    #[add_in_prop(ty = Int, name = "ProtectedProp", name_ru = "ЗащищенноеСвойство", readable)]
     pub protected_prop: i32,
 
     /// Function, taking one or two arguments and returning a result
@@ -35,14 +35,13 @@ pub struct MyAddIn {
 
     /// Function, taking no arguments and returning nothing
     #[add_in_func(name = "MyProcedure", name_ru = "МояПроцедура")]
-    #[returns(ty = Str)]
-    pub my_procedure: fn(&mut Self) -> String,
+    pub my_procedure: fn(&mut Self),
 
     /// Private field, not visible from 1C
     private_field: i32,
 }
 
-impl Default for MyAddIn {
+impl Default for SampleAddIn {
     fn default() -> Self {
         Self {
             connection: Arc::new(None),
@@ -55,7 +54,7 @@ impl Default for MyAddIn {
     }
 }
 
-impl MyAddIn {
+impl SampleAddIn {
     fn my_function_inner(&self, arg: i32, arg_maybe_default: i64) -> Result<i32, ()> {
         Ok(self.protected_prop
             + self.some_prop
@@ -64,12 +63,11 @@ impl MyAddIn {
             + arg_maybe_default as i32)
     }
 
-    fn my_procedure_inner(&mut self) -> String {
-        self.protected_prop += 1;
-        "Some string from rust".to_string()
+    fn my_procedure_inner(&mut self) {
+        self.protected_prop += 10;
     }
 }
 
 extern_functions! {
-    MyAddIn::default(),
+    SampleAddIn::default(),
 }

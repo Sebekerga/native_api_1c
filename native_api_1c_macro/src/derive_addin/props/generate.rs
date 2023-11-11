@@ -11,7 +11,7 @@ pub fn param_ty_to_ffi_set(
         PropType::Bool => {
             quote! {
                 native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Bool(inner_value) => {
-                    self.#param_path = inner_value.clone(),
+                    self.#param_path = inner_value.clone()
                 }
             }
         }

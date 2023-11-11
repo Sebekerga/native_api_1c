@@ -1,7 +1,7 @@
 use darling::{FromField, FromMeta};
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{Attribute, DataStruct, Expr};
+use syn::{spanned::Spanned, Attribute, DataStruct, Meta};
 
 use crate::derive_addin::utils::{ident_option_to_darling_err, str_literal_token};
 
@@ -60,17 +60,19 @@ impl FromField for FuncDesc {
         let mut params = params_meta
             .into_iter()
             .map(FuncArgumentDesc::try_from)
-            .map(|res| res.map_err(|_| darling::Error::custom("Invalid argument type")))
+            .map(|res| res.map_err(|err| err.into()))
             .collect::<Result<Vec<FuncArgumentDesc>, darling::Error>>()?;
 
         let return_value = match return_meta {
-            Some(return_meta) => FuncReturnDesc::try_from(return_meta)
-                .map_err(|_| darling::Error::custom("Invalid argument type"))?,
-            None => FuncReturnDesc {
+            Some(return_meta) => FuncReturnDesc::try_from(return_meta),
+            None => Ok(FuncReturnDesc {
                 ty: ReturnType::None,
                 result: false,
-            },
+            }),
         };
+        let return_value: Result<FuncReturnDesc, darling::Error> =
+            return_value.map_err(|err| err.into());
+        let return_value = return_value?;
 
         let syn::Type::BareFn(bare_fn) = &field.ty else {
             return Err(darling::Error::custom("AddIn functions must have bare `fn` type")
@@ -80,22 +82,22 @@ impl FromField for FuncDesc {
         if let Some(first_input) = bare_fn.inputs.first() {
             let arg_tkn_stream: TokenStream = first_input.to_token_stream();
 
-            let reference: syn::TypeReference = syn::parse2(arg_tkn_stream.clone())?;
-
-            if arg_tkn_stream
-                .into_iter()
-                .filter(|t| t.to_string() == "Self")
-                .count()
-                == 1
-            {
-                params.insert(
-                    0,
-                    FuncArgumentDesc {
-                        ty: ParamType::SelfType,
-                        default: None,
-                        out_param: reference.mutability.is_some(),
-                    },
-                )
+            if let Ok(reference) = syn::parse2::<syn::TypeReference>(arg_tkn_stream.clone()) {
+                if arg_tkn_stream
+                    .into_iter()
+                    .filter(|t| t.to_string() == "Self")
+                    .count()
+                    == 1
+                {
+                    params.insert(
+                        0,
+                        FuncArgumentDesc {
+                            ty: ParamType::SelfType,
+                            default: None,
+                            out_param: reference.mutability.is_some(),
+                        },
+                    )
+                };
             };
         };
 
@@ -128,8 +130,9 @@ struct FuncHeadMeta {
 
 #[derive(FromMeta, Debug)]
 struct FuncArgumentMeta {
+    ident: Option<syn::Ident>,
     ty: ParamType,
-    default: Option<Expr>,
+    default: Option<Meta>,
     #[allow(dead_code)]
     as_in: Option<()>,
     as_out: Option<()>,
@@ -141,13 +144,39 @@ impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
     fn try_from(arg_meta: FuncArgumentMeta) -> Result<Self, Self::Error> {
         if arg_meta.as_in.is_some() && arg_meta.as_out.is_some() {
             return Err(Self::Error::ConflictingParams(
+                arg_meta.ident.span(),
                 "as_in".to_string(),
                 "as_out".to_string(),
             ));
         }
+
+        let allowed_defaults = match arg_meta.ty {
+            ParamType::Bool => true,
+            ParamType::I32 => true,
+            ParamType::F64 => true,
+            ParamType::String => true,
+            ParamType::Date => false,
+            ParamType::Blob => false,
+            ParamType::SelfType => false,
+        };
+
+        if arg_meta.default.is_some() && !allowed_defaults {
+            return Err(Self::Error::TypeCannotBeDefault(
+                arg_meta.ty,
+                arg_meta.default.span(),
+            ));
+        }
+
+        // if you pass "some_string" as default, it would get parsed by darling as `Ident`
+        let default_fixed = arg_meta.default.map(|d| match d {
+            Meta::NameValue(nv) => Ok(nv.value.to_token_stream()),
+            _ => Err(Self::Error::UnexpectedMetaType(arg_meta.ident.span())),
+        });
+        let default_fixed = default_fixed.transpose()?;
+
         Ok(Self {
             ty: arg_meta.ty,
-            default: arg_meta.default,
+            default: default_fixed,
             out_param: arg_meta.as_out.is_some(),
         })
     }
@@ -179,29 +208,41 @@ impl TryFrom<FuncReturnMeta> for FuncReturnDesc {
 }
 
 pub enum ErrorConvertingMeta {
-    InvalidTypeForParam(String),
-    InvalidTypeForReturn(String),
-    ConflictingParams(String, String),
+    UnexpectedMetaType(Span),
+    TypeCannotBeDefault(ParamType, Span),
+    InvalidTypeForParam(Span, String),
+    InvalidTypeForReturn(Span, String),
+    ConflictingParams(Span, String, String),
 }
 
 impl From<ErrorConvertingMeta> for darling::Error {
     fn from(err: ErrorConvertingMeta) -> Self {
         match err {
-            ErrorConvertingMeta::InvalidTypeForParam(ty) => {
+            ErrorConvertingMeta::InvalidTypeForParam(span, ty) => {
                 let joined_allowed_types = crate::derive_addin::constants::ALL_ARG_TYPES.join(", ");
                 darling::Error::custom(format!(
                     "Invalid type: `{ty}`. Must be one of: {joined_allowed_types}"
                 ))
+                .with_span(&span)
             }
-            ErrorConvertingMeta::InvalidTypeForReturn(ty) => {
+            ErrorConvertingMeta::InvalidTypeForReturn(span, ty) => {
                 let joined_allowed_types =
                     crate::derive_addin::constants::ALL_RETURN_TYPES.join(", ");
                 darling::Error::custom(format!(
                     "Invalid type: `{ty}`. Must be one of: {joined_allowed_types}"
                 ))
+                .with_span(&span)
             }
-            ErrorConvertingMeta::ConflictingParams(param1, param2) => {
+            ErrorConvertingMeta::ConflictingParams(span, param1, param2) => {
                 darling::Error::custom(format!("Conflicting params: {} and {}", param1, param2))
+                    .with_span(&span)
+            }
+            ErrorConvertingMeta::TypeCannotBeDefault(param_type, span) => {
+                darling::Error::custom(format!("Type `{param_type}` cannot have default value"))
+                    .with_span(&span)
+            }
+            ErrorConvertingMeta::UnexpectedMetaType(span) => {
+                darling::Error::custom("Unexpected meta type").with_span(&span)
             }
         }
     }

@@ -1,5 +1,5 @@
 use proc_macro2::LexError;
-use syn::Ident;
+use syn::{spanned::Spanned, Ident};
 
 pub mod macros {
     macro_rules! tkn_err_inner {
@@ -27,10 +27,13 @@ pub fn ident_option_to_darling_err(ident: Option<&Ident>) -> Result<&Ident, darl
     ident.ok_or_else(|| darling::Error::custom(IDENT_OPTION_ERR))
 }
 
-pub fn str_literal_token(
+pub fn str_literal_token<T>(
     str_literal: &str,
-    err_ident: &Ident,
-) -> Result<proc_macro2::TokenStream, darling::Error> {
+    err_ident: &T,
+) -> Result<proc_macro2::TokenStream, darling::Error>
+where
+    T: Spanned,
+{
     format!(r#""{}""#, str_literal)
         .parse()
         .map_err(|e: LexError| {

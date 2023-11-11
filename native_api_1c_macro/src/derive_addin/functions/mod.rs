@@ -1,6 +1,7 @@
+use std::fmt::Display;
+
 use darling::FromMeta;
 use proc_macro2::{Ident, TokenStream};
-use syn::Expr;
 
 use super::{
     common_generators::SettableTypes,
@@ -35,7 +36,7 @@ impl FuncDesc {
 
 pub struct FuncArgumentDesc {
     pub ty: ParamType,
-    pub default: Option<Expr>,
+    pub default: Option<TokenStream>,
     pub out_param: bool,
 }
 
@@ -54,6 +55,21 @@ pub enum ParamType {
     Date,
     Blob,
     SelfType,
+}
+
+impl Display for ParamType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let type_str = match self {
+            ParamType::Bool => BOOL_TYPE,
+            ParamType::I32 => I32_TYPE,
+            ParamType::F64 => F64_TYPE,
+            ParamType::String => STRING_TYPE,
+            ParamType::Date => DATE_TYPE,
+            ParamType::Blob => BLOB_TYPE,
+            ParamType::SelfType => UNTYPED_TYPE,
+        };
+        write!(f, "{}", type_str)
+    }
 }
 
 impl FromMeta for ParamType {

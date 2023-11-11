@@ -1,11 +1,10 @@
 mod parse;
 
-use darling::FromMeta;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 
 use parse::ExternAddInsDesc;
-use syn::{LitByte, LitChar, LitStr};
+use syn::{LitByte, LitStr};
 
 static ASCII_LOWER: [char; 50] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', // numbers

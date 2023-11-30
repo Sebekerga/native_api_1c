@@ -24,10 +24,10 @@ pub unsafe fn get_str<'a>(s: *const u16) -> &'a [u16] {
 /// # Arguments
 /// * `s` - Rust string
 /// # Returns
-/// `Vec<u16>` - UTF-16 string without null terminator
+/// `Vec<u16>` - UTF-16 string with null terminator
 #[cfg(target_family = "unix")]
 pub fn os_string_nil(s: &str) -> Vec<u16> {
-    s.encode_utf16().collect()
+    s.encode_utf16().chain(Some(0).into_iter()).collect()
 }
 
 /// Helper function to convert Rust string to UTF-16 string

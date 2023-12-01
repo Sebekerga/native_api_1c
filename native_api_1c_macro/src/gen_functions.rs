@@ -323,7 +323,7 @@ pub fn func_call_tkn(
             ParamType::I32 => quote! { val.set_i32(call_result.into()); },
             ParamType::F64 => quote! { val.set_f64(call_result.into()); },
             ParamType::String => {
-                quote! { val.set_str(&native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil(String::from(&call_result).as_str())); }
+                quote! { val.set_str(&native_api_1c::native_api_1c_core::ffi::string_utils::os_string(String::from(&call_result).as_str())); }
             }
             ParamType::Date => {
                 quote! { val.set_date(call_result.into()); }

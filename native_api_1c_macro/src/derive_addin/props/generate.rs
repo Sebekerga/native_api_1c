@@ -40,7 +40,11 @@ pub fn param_ty_to_ffi_set(
         PropType::Date => {
             quote! {
                 native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue::Date(inner_value) => {
-                    self.#param_path = inner_value.clone()
+                    {
+                        let convert_result = chrono::NaiveDateTime::try_from(inner_value);
+                        let Ok(converted) = convert_result else { return false };
+                        self.#param_path = converted;
+                    }
                 },
             }
         }

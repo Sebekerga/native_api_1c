@@ -35,6 +35,12 @@ pub struct MyAddIn {
     pub bool_prop_r: bool,
     #[add_in_prop(ty = Bool, name = "prp_W_bool", name_ru = "свств_W_bool", writable)]
     pub bool_prop_w: bool,
+    #[add_in_prop(ty = Date, name = "prp_RW_date", name_ru = "свств_RW_date", readable, writable)]
+    pub date_prop_rw: chrono::NaiveDateTime,
+    #[add_in_prop(ty = Date, name = "prp_R_date", name_ru = "свств_R_date", readable)]
+    pub date_prop_r: chrono::NaiveDateTime,
+    #[add_in_prop(ty = Date, name = "prp_W_date", name_ru = "свств_W_date", writable)]
+    pub date_prop_w: chrono::NaiveDateTime,
 }
 
 impl MyAddIn {
@@ -53,6 +59,9 @@ impl MyAddIn {
             bool_prop_rw: false,
             bool_prop_r: false,
             bool_prop_w: false,
+            date_prop_rw: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            date_prop_r: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            date_prop_w: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
         }
     }
 }

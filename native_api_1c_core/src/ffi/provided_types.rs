@@ -75,6 +75,12 @@ impl From<&chrono::NaiveDateTime> for Tm {
     }
 }
 
+impl From<chrono::NaiveDateTime> for Tm {
+    fn from(value: chrono::NaiveDateTime) -> Self {
+        Self::from(&value)
+    }
+}
+
 #[cfg(target_family = "unix")]
 impl PartialEq for Tm {
     fn eq(&self, other: &Self) -> bool {

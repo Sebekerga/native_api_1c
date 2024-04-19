@@ -1,16 +1,15 @@
+use super::{
+    get_str, offset,
+    provided_types::{ParamValue, ReturnValue, TVariant},
+};
+use crate::interface::AddInWrapper;
 use std::{
     ffi::c_long,
     ptr::{self},
     slice::from_raw_parts_mut,
 };
 
-use crate::interface::AddInWrapper;
-
-use super::{
-    get_str,
-    provided_types::{ParamValue, ReturnValue, TVariant},
-    This,
-};
+type This<T> = super::This<{ offset::LANG_EXTENDER }, T>;
 
 #[repr(C)]
 pub struct LanguageExtenderBaseVTable<T: AddInWrapper> {
@@ -18,49 +17,37 @@ pub struct LanguageExtenderBaseVTable<T: AddInWrapper> {
     #[cfg(target_family = "unix")]
     dtor2: usize,
     register_extension_as:
-        unsafe extern "system" fn(&mut This<1, T>, *mut *mut u16) -> bool,
-    get_n_props: unsafe extern "system" fn(&mut This<1, T>) -> c_long,
-    find_prop: unsafe extern "system" fn(&mut This<1, T>, *const u16) -> c_long,
-    get_prop_name: unsafe extern "system" fn(
-        &mut This<1, T>,
-        c_long,
-        c_long,
-    ) -> *const u16,
-    get_prop_val: unsafe extern "system" fn(
-        &mut This<1, T>,
-        c_long,
-        &mut TVariant,
-    ) -> bool,
+        unsafe extern "system" fn(&mut This<T>, *mut *mut u16) -> bool,
+    get_n_props: unsafe extern "system" fn(&mut This<T>) -> c_long,
+    find_prop: unsafe extern "system" fn(&mut This<T>, *const u16) -> c_long,
+    get_prop_name:
+        unsafe extern "system" fn(&mut This<T>, c_long, c_long) -> *const u16,
+    get_prop_val:
+        unsafe extern "system" fn(&mut This<T>, c_long, &mut TVariant) -> bool,
     set_prop_val:
-        unsafe extern "system" fn(&mut This<1, T>, c_long, &TVariant) -> bool,
-    is_prop_readable:
-        unsafe extern "system" fn(&mut This<1, T>, c_long) -> bool,
-    is_prop_writable:
-        unsafe extern "system" fn(&mut This<1, T>, c_long) -> bool,
-    get_n_methods: unsafe extern "system" fn(&mut This<1, T>) -> c_long,
-    find_method:
-        unsafe extern "system" fn(&mut This<1, T>, *const u16) -> c_long,
-    get_method_name: unsafe extern "system" fn(
-        &mut This<1, T>,
-        c_long,
-        c_long,
-    ) -> *const u16,
-    get_n_params: unsafe extern "system" fn(&mut This<1, T>, c_long) -> c_long,
+        unsafe extern "system" fn(&mut This<T>, c_long, &TVariant) -> bool,
+    is_prop_readable: unsafe extern "system" fn(&mut This<T>, c_long) -> bool,
+    is_prop_writable: unsafe extern "system" fn(&mut This<T>, c_long) -> bool,
+    get_n_methods: unsafe extern "system" fn(&mut This<T>) -> c_long,
+    find_method: unsafe extern "system" fn(&mut This<T>, *const u16) -> c_long,
+    get_method_name:
+        unsafe extern "system" fn(&mut This<T>, c_long, c_long) -> *const u16,
+    get_n_params: unsafe extern "system" fn(&mut This<T>, c_long) -> c_long,
     get_param_def_value: unsafe extern "system" fn(
-        &mut This<1, T>,
+        &mut This<T>,
         c_long,
         c_long,
         &mut TVariant,
     ) -> bool,
-    has_ret_val: unsafe extern "system" fn(&mut This<1, T>, c_long) -> bool,
+    has_ret_val: unsafe extern "system" fn(&mut This<T>, c_long) -> bool,
     call_as_proc: unsafe extern "system" fn(
-        &mut This<1, T>,
+        &mut This<T>,
         c_long,
         *mut TVariant,
         c_long,
     ) -> bool,
     call_as_func: unsafe extern "system" fn(
-        &mut This<1, T>,
+        &mut This<T>,
         c_long,
         &mut TVariant,
         *mut TVariant,
@@ -69,11 +56,11 @@ pub struct LanguageExtenderBaseVTable<T: AddInWrapper> {
 }
 
 unsafe extern "system" fn register_extension_as<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     name: *mut *mut u16,
 ) -> bool {
     let component = this.get_component();
-    let Some(allocator) = component.memory else {
+    let Some(allocator) = component.memory_manager_ptr else {
         return false;
     };
 
@@ -93,14 +80,14 @@ unsafe extern "system" fn register_extension_as<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_n_props<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
 ) -> c_long {
     let component = this.get_component();
     component.addin.get_n_props() as c_long
 }
 
 unsafe extern "system" fn find_prop<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     name: *const u16,
 ) -> c_long {
     let component = this.get_component();
@@ -112,15 +99,17 @@ unsafe extern "system" fn find_prop<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_prop_name<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     num: c_long,
     alias: c_long,
 ) -> *const u16 {
     let component = this.get_component();
-    let Some(allocator) = component.memory else {
+    let Some(allocator) = component.memory_manager_ptr else {
         return ptr::null();
     };
-    let Some(prop_name) = component.addin.get_prop_name(num as usize, alias as usize) else {
+    let Some(prop_name) =
+        component.addin.get_prop_name(num as usize, alias as usize)
+    else {
         return ptr::null();
     };
     let Ok(ptr) = allocator.alloc_str(prop_name.len()) else {
@@ -132,12 +121,12 @@ unsafe extern "system" fn get_prop_name<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_prop_val<T: AddInWrapper>(
-    component: &mut This<1, T>,
+    component: &mut This<T>,
     num: c_long,
     val: &mut TVariant,
 ) -> bool {
     let component = component.get_component();
-    let Some(mem) = component.memory else {
+    let Some(mem) = component.memory_manager_ptr else {
         return false;
     };
 
@@ -151,7 +140,7 @@ unsafe extern "system" fn get_prop_val<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn set_prop_val<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     num: c_long,
     val: &TVariant,
 ) -> bool {
@@ -161,7 +150,7 @@ unsafe extern "system" fn set_prop_val<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn is_prop_readable<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     num: c_long,
 ) -> bool {
     let component = this.get_component();
@@ -169,7 +158,7 @@ unsafe extern "system" fn is_prop_readable<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn is_prop_writable<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     num: c_long,
 ) -> bool {
     let component = this.get_component();
@@ -177,14 +166,14 @@ unsafe extern "system" fn is_prop_writable<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_n_methods<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
 ) -> c_long {
     let component = this.get_component();
     component.addin.get_n_methods() as c_long
 }
 
 unsafe extern "system" fn find_method<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     name: *const u16,
 ) -> c_long {
     let component = this.get_component();
@@ -196,15 +185,18 @@ unsafe extern "system" fn find_method<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_method_name<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     num: c_long,
     alias: c_long,
 ) -> *const u16 {
     let component = this.get_component();
-    let Some(allocator) = component.memory else {
+    let Some(allocator) = component.memory_manager_ptr else {
         return ptr::null();
     };
-    let Some(method_name) = component.addin.get_method_name(num as usize, alias as usize) else {
+    let Some(method_name) = component
+        .addin
+        .get_method_name(num as usize, alias as usize)
+    else {
         return ptr::null();
     };
     let Ok(ptr) = allocator.alloc_str(method_name.len()) else {
@@ -221,7 +213,7 @@ unsafe extern "system" fn get_method_name<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_n_params<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     num: c_long,
 ) -> c_long {
     let component = this.get_component();
@@ -229,13 +221,13 @@ unsafe extern "system" fn get_n_params<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_param_def_value<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     method_num: c_long,
     param_num: c_long,
     val: &mut TVariant,
 ) -> bool {
     let component = this.get_component();
-    let Some(mem) = component.memory else {
+    let Some(mem) = component.memory_manager_ptr else {
         return false;
     };
 
@@ -254,7 +246,7 @@ unsafe extern "system" fn get_param_def_value<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn has_ret_val<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     method_num: c_long,
 ) -> bool {
     let component = this.get_component();
@@ -262,13 +254,15 @@ unsafe extern "system" fn has_ret_val<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn call_as_proc<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     method_num: c_long,
     params: *mut TVariant,
     size_array: c_long,
 ) -> bool {
     let component = this.get_component();
-    let Some(mem_mngr) = component.memory else { return false; };
+    let Some(mem_mngr) = component.memory_manager_ptr else {
+        return false;
+    };
 
     let parameters_raw = from_raw_parts_mut(params, size_array as usize);
     let mut parameters_values = parameters_raw
@@ -294,10 +288,14 @@ unsafe extern "system" fn call_as_proc<T: AddInWrapper>(
         }
         match &parameters_values[i] {
             ParamValue::Str(v) => {
-                let Ok(_) = raw_param.update_to_str(mem_mngr, v) else { return false; };
+                let Ok(_) = raw_param.update_to_str(mem_mngr, v) else {
+                    return false;
+                };
             }
             ParamValue::Blob(v) => {
-                let Ok(_) = raw_param.update_to_blob(mem_mngr, v) else { return false; };
+                let Ok(_) = raw_param.update_to_blob(mem_mngr, v) else {
+                    return false;
+                };
             }
             ParamValue::Bool(v) => raw_param.update_to_bool(*v),
             ParamValue::I32(v) => raw_param.update_to_i32(*v),
@@ -311,14 +309,16 @@ unsafe extern "system" fn call_as_proc<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn call_as_func<T: AddInWrapper>(
-    this: &mut This<1, T>,
+    this: &mut This<T>,
     method_num: c_long,
     ret_value: &mut TVariant,
     params: *mut TVariant,
     size_array: c_long,
 ) -> bool {
     let component = this.get_component();
-    let Some(mem_mngr) = component.memory else { return false; };
+    let Some(mem_mngr) = component.memory_manager_ptr else {
+        return false;
+    };
 
     let mut result = true;
     let return_value = ReturnValue {
@@ -356,10 +356,14 @@ unsafe extern "system" fn call_as_func<T: AddInWrapper>(
         }
         match &parameters_values[i] {
             ParamValue::Str(v) => {
-                let Ok(_) = raw_param.update_to_str(mem_mngr, v) else { return false; };
+                let Ok(_) = raw_param.update_to_str(mem_mngr, v) else {
+                    return false;
+                };
             }
             ParamValue::Blob(v) => {
-                let Ok(_) = raw_param.update_to_blob(mem_mngr, v) else { return false; };
+                let Ok(_) = raw_param.update_to_blob(mem_mngr, v) else {
+                    return false;
+                };
             }
             ParamValue::Bool(v) => raw_param.update_to_bool(*v),
             ParamValue::I32(v) => raw_param.update_to_i32(*v),

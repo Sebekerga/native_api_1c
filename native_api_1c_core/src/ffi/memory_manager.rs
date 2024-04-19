@@ -74,6 +74,12 @@ impl MemoryManager {
         }
     }
 
+    /// Safe wrapper around `free_memory` method of the MemoryManager object
+    /// to free memory block
+    /// # Arguments
+    /// * `ptr` - pointer to the memory block to free
+    /// # Returns
+    /// `Result<(), ()>` - empty result
     pub fn free_memory(&self, ptr: &mut *mut c_void) {
         unsafe {
             (self.vptr.free_memory)(self, ptr);

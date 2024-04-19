@@ -10,22 +10,28 @@ use std::{
 use crate::interface::AddInWrapper;
 
 use self::{
-    init_base::InitDoneBaseVTable, lang_extender::LanguageExtenderBaseVTable,
+    connection::Connection, init_done::InitDoneBaseVTable,
+    lang_extender::LanguageExtenderBaseVTable, locale_base::LocaleBaseVTable,
     memory_manager::MemoryManager, string_utils::get_str,
+    user_lang_base::UserLanguageBaseVTable,
 };
 
 /// Implementation of `Connection` - replacement for `IAddInDefBase`
 pub mod connection;
 /// Implementation of `InitDone` - replacement for `IInitDoneBase`
-pub mod init_base;
+pub mod init_done;
 /// Implementation of `LanguageExtender` - replacement for `ILanguageExtenderBase`
 pub mod lang_extender;
+/// Implementation of `LocaleBase`
+pub mod locale_base;
 /// Implementation of `MemoryManager` - replacement for `IMemoryManager`
 pub mod memory_manager;
 /// Implementations of types, provided by Native API for easy of use in Rust
 pub mod provided_types;
 /// Functions to convert between Rust and 1C strings
 pub mod string_utils;
+/// Implementation of `UserLanguageBase`
+pub mod user_lang_base;
 
 /// Scheme of attaching to 1C platform process
 #[repr(C)]
@@ -40,9 +46,19 @@ pub enum AttachType {
     Any,
 }
 
+/// Struct to extract pointer to `Component` from it's interface components
+/// In some places we need to get pointer to `Component` from it's interface
+/// components, so we need to calculate offset of `Component` in memory
 #[repr(C)]
 struct This<const OFFSET: usize, T: AddInWrapper> {
     ptr: *mut Component<T>,
+}
+
+mod offset {
+    pub const INIT_DONE: usize = 0;
+    pub const LANG_EXTENDER: usize = 1;
+    pub const LOCALE: usize = 2;
+    pub const USER_LANG: usize = 3;
 }
 
 impl<'a, const OFFSET: usize, T: AddInWrapper> This<OFFSET, T> {
@@ -54,48 +70,21 @@ impl<'a, const OFFSET: usize, T: AddInWrapper> This<OFFSET, T> {
 }
 
 #[repr(C)]
-struct LocaleBaseVTable<T: AddInWrapper> {
-    dtor: usize,
-    #[cfg(target_family = "unix")]
-    dtor2: usize,
-    set_locale: unsafe extern "system" fn(&mut This<2, T>, *const u16),
-}
-
-unsafe extern "system" fn set_locale<T: AddInWrapper>(
-    this: &mut This<2, T>,
-    loc: *const u16,
-) {
-    let component = this.get_component();
-    let loc = get_str(loc);
-    component.addin.set_locale(loc)
-}
-
-#[repr(C)]
-struct UserLanguageBaseVTable<T: AddInWrapper> {
-    dtor: usize,
-    #[cfg(target_family = "unix")]
-    dtor2: usize,
-    set_user_interface_language_code:
-        unsafe extern "system" fn(&mut This<3, T>, *const u16),
-}
-
-unsafe extern "system" fn set_user_interface_language_code<T: AddInWrapper>(
-    this: &mut This<3, T>,
-    lang: *const u16,
-) {
-    let component = this.get_component();
-    let lang = get_str(lang);
-    component.addin.set_user_interface_language_code(lang)
-}
-
-#[repr(C)]
 struct Component<T: AddInWrapper> {
-    vptr1: Box<InitDoneBaseVTable<T>>,
-    vptr2: Box<LanguageExtenderBaseVTable<T>>,
-    vptr3: Box<LocaleBaseVTable<T>>,
-    vptr4: Box<UserLanguageBaseVTable<T>>,
+    // 1C Interface
+    init_done_ptr: Box<InitDoneBaseVTable<T>>,
+    lang_extender_ptr: Box<LanguageExtenderBaseVTable<T>>,
+    locale_ptr: Box<LocaleBaseVTable<T>>,
+    usr_lang_ptr: Box<UserLanguageBaseVTable<T>>,
+
+    // storage for additional interfaces
+    memory_manager_ptr: Option<&'static MemoryManager>,
+    connection_ptr: Option<&'static Connection>,
+    locale: Option<String>,
+    user_interface_language_code: Option<String>,
+
+    // rust part
     destroy: unsafe extern "system" fn(*mut *mut Component<T>),
-    memory: Option<&'static MemoryManager>,
     addin: T,
 }
 
@@ -113,29 +102,17 @@ pub unsafe fn create_component<T: AddInWrapper>(
     component: *mut *mut c_void,
     addin: T,
 ) -> c_long {
-    let vptr1 = Box::<InitDoneBaseVTable<T>>::default();
-    let vptr2 = Box::<LanguageExtenderBaseVTable<T>>::default();
-    let vptr3 = Box::new(LocaleBaseVTable {
-        dtor: 0,
-        #[cfg(target_family = "unix")]
-        dtor2: 0,
-        set_locale,
-    });
-
-    let vptr4 = Box::new(UserLanguageBaseVTable {
-        dtor: 0,
-        #[cfg(target_family = "unix")]
-        dtor2: 0,
-        set_user_interface_language_code,
-    });
-
     let c = Box::new(Component {
-        vptr1,
-        vptr2,
-        vptr3,
-        vptr4,
+        init_done_ptr: Default::default(),
+        lang_extender_ptr: Default::default(),
+        locale_ptr: Default::default(),
+        usr_lang_ptr: Default::default(),
+
         destroy: destroy::<T>,
-        memory: None,
+        memory_manager_ptr: Default::default(),
+        connection_ptr: Default::default(),
+        locale: Default::default(),
+        user_interface_language_code: Default::default(),
         addin,
     });
 

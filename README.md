@@ -19,6 +19,16 @@ Library for simple 1C:Enterprise platform Native API Component development, orig
 
 Crate is tested on Linux and Windows. It should work on MacOS as well, but it is not tested.
 
+## A word on testing
+
+In order to test the actual FFI calls, you need to have 1C:Enterprise file base, which makes it hard
+to test reliably with Rust tests, *and also makes it not free :)*. One alternative is to use 
+[OneScript](https://github.com/EvilBeaver/OneScript), which can run 1C:Enterprise scripts, including
+AddIn functions. However, it is not a perfect solution, because it is not 1C:Enterprise itself, and
+**their implementations of Native API interfaces is not the same**
+(See [this issue](https://github.com/EvilBeaver/OneScript/issues/1359) or try building and running
+[this example](https://github.com/Sebekerga/native_api_1c_go))
+
 # Structure
 Library is divided into two submodules:
 - `native_api_1c_core` describes all necessary for implementing 1C:Enterprise Native API

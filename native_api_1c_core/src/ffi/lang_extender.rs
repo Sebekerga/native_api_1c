@@ -1,5 +1,7 @@
 use super::{
-    get_str, offset,
+    get_str,
+    memory_manager::MemoryManagerImpl,
+    offset,
     provided_types::{ParamValue, ReturnValue, TVariant},
 };
 use crate::interface::AddInWrapper;

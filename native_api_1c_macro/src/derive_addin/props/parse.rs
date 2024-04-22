@@ -1,7 +1,8 @@
 use darling::{FromField, FromMeta};
+use quote::ToTokens;
 use syn::{Attribute, DataStruct};
 
-use crate::derive_addin::utils::{ident_option_to_darling_err, str_literal_token};
+use crate::derive_addin::utils::ident_option_to_darling_err;
 
 use super::{PropDesc, PropType};
 
@@ -29,14 +30,17 @@ impl FromField for PropDesc {
 
         let prop_meta = PropMeta::from_meta(&add_in_prop_attr.meta)?;
 
-        let name_literal = str_literal_token(&prop_meta.name, field_ident)?;
-        let name_ru_literal = str_literal_token(&prop_meta.name_ru, field_ident)?;
+        let name_literal = match prop_meta.name {
+            PropName::StringLiteral(name) => name.to_token_stream(),
+            PropName::Ident(ident) => ident.to_token_stream(),
+        };
+        let name_ru_literal = match prop_meta.name_ru {
+            PropName::StringLiteral(name_ru) => name_ru.to_token_stream(),
+            PropName::Ident(ident) => ident.to_token_stream(),
+        };
 
         Ok(PropDesc {
             ident: field_ident.clone(),
-
-            name: prop_meta.name,
-            name_ru: prop_meta.name_ru,
 
             name_literal,
             name_ru_literal,
@@ -48,11 +52,30 @@ impl FromField for PropDesc {
     }
 }
 
+#[derive(Debug)]
+pub enum PropName {
+    StringLiteral(syn::LitStr),
+    Ident(syn::ExprPath),
+}
+
+impl FromMeta for PropName {
+    fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
+        match expr {
+            syn::Expr::Lit(lit) => match &lit.lit {
+                syn::Lit::Str(str_lit) => Ok(PropName::StringLiteral(str_lit.clone())),
+                _ => Err(darling::Error::custom("expected string literal").with_span(expr)),
+            },
+            syn::Expr::Path(path) => Ok(PropName::Ident(path.clone())),
+            _ => Err(darling::Error::custom("expected string literal or path").with_span(expr)),
+        }
+    }
+}
+
 #[derive(FromMeta, Debug)]
 pub struct PropMeta {
     pub ty: PropType,
-    pub name: String,
-    pub name_ru: String,
+    pub name: PropName,
+    pub name_ru: PropName,
     pub readable: Option<()>,
     pub writable: Option<()>,
 }

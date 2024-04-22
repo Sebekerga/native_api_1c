@@ -1,5 +1,5 @@
 error: Type `Blob` cannot have default value
-  --> tests/to_build/functions/defaults/blob_type.rs:12:22
+  --> tests/trybuild/to_build/functions/defaults/blob_type.rs:12:22
    |
 12 |     #[arg(ty = Blob, default = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])]
    |                      ^^^^^^^

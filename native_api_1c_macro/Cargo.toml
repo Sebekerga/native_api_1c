@@ -7,16 +7,12 @@ license = "MIT"
 description = "Macro library for Native API 1C"
 
 [[test]]
-name = "readme_example"
-path = "tests/readme.rs"
+name = "trybuild"
+path = "tests/trybuild/tests.rs"
 
 [[test]]
-name = "functions"
-path = "tests/functions.rs"
-
-[[test]]
-name = "props"
-path = "tests/props.rs"
+name = "props_interface"
+path = "tests/interface/props.rs"
 
 [lib]
 proc-macro = true
@@ -32,3 +28,4 @@ native_api_1c = { path = "../native_api_1c" }
 trybuild = { version = "1.0.49", features = ["diff"] }
 utf16_lit = "2.0"
 chrono = "0.4.26"
+rstest = "0.19.0"

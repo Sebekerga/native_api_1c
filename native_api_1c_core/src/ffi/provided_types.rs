@@ -6,7 +6,9 @@ use std::{
 
 use chrono::{Datelike, Timelike};
 
-use super::memory_manager::{AllocationError, MemoryManager};
+use super::memory_manager::{
+    AllocationError, MemoryManager, MemoryManagerImpl,
+};
 
 /// Type representing 1C date and time values
 /// # Fields
@@ -119,7 +121,7 @@ impl PartialEq for Tm {
 /// `variant` - pointer to the TVariant object
 /// `result` - pointer to the result of the operation
 pub struct ReturnValue<'a> {
-    pub mem: &'a MemoryManager,
+    pub mem: &'a dyn MemoryManagerImpl,
     pub variant: &'a mut TVariant,
     pub result: &'a mut bool,
 }
@@ -127,6 +129,19 @@ pub struct ReturnValue<'a> {
 #[allow(dead_code)]
 impl<'a> ReturnValue<'a> {
     /// Creates a new ReturnValue object
+    pub fn new(
+        mem: &'a dyn MemoryManagerImpl,
+        variant: &'a mut TVariant,
+        result: &'a mut bool,
+    ) -> Self {
+        Self {
+            mem,
+            variant,
+            result,
+        }
+    }
+
+    /// Sets the value of the ReturnValue object to empty
     pub fn set_empty(self) {
         self.variant.vt = VariantType::Empty;
     }
@@ -253,6 +268,7 @@ impl<'a> From<&'a TVariant> for ParamValue {
 
 #[repr(u16)]
 #[allow(dead_code)]
+#[derive(PartialEq, Debug)]
 pub enum VariantType {
     Empty = 0,
     Null,
@@ -326,9 +342,19 @@ pub union VariantValue {
 /// Type encapsulating 1C variant values for internal use
 #[repr(C)]
 pub struct TVariant {
-    value: VariantValue,
-    elements: u32, //Dimension for an one-dimensional array in pvarVal
-    vt: VariantType,
+    pub value: VariantValue,
+    pub elements: u32, //Dimension for an one-dimensional array in pvarVal
+    pub vt: VariantType,
+}
+
+impl Default for TVariant {
+    fn default() -> Self {
+        Self {
+            value: VariantValue { bool: false },
+            elements: 0,
+            vt: VariantType::Empty,
+        }
+    }
 }
 
 impl TVariant {

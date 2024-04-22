@@ -1,5 +1,5 @@
 error: Type `Date` cannot have default value
-  --> tests/to_build/functions/defaults/date_type.rs:12:22
+  --> tests/trybuild/to_build/functions/defaults/date_type.rs:12:22
    |
 12 |     #[arg(ty = Date, default = "2021-01-01T00:00:00+00:00")]
    |                      ^^^^^^^

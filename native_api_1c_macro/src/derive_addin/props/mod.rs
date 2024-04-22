@@ -13,9 +13,6 @@ pub mod parse;
 pub struct PropDesc {
     pub ident: Ident,
 
-    pub name: String,
-    pub name_ru: String,
-
     pub name_literal: TokenStream,
     pub name_ru_literal: TokenStream,
 

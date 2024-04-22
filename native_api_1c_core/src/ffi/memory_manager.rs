@@ -27,17 +27,34 @@ pub struct MemoryManager {
 
 pub struct AllocationError;
 
-impl MemoryManager {
+pub trait MemoryManagerImpl {
     /// Safe wrapper around `alloc_memory` method of the MemoryManager object
     /// to allocate memory for byte array
     /// # Arguments
     /// * `size` - size of the memory block to allocate
     /// # Returns
     /// `Result<NonNull<u8>, AllocationError>` - pointer to the allocated memory block
-    pub fn alloc_blob(
-        &self,
-        size: usize,
-    ) -> Result<NonNull<u8>, AllocationError> {
+    fn alloc_blob(&self, size: usize) -> Result<NonNull<u8>, AllocationError>;
+
+    /// Safe wrapper around `alloc_memory` method of the MemoryManager object
+    /// to allocate memory for UTF-16 string
+    /// # Arguments
+    /// * `size` - size of the memory block to allocate
+    /// # Returns
+    /// `Result<NonNull<u16>, AllocationError>` - pointer to the allocated memory block
+    fn alloc_str(&self, size: usize) -> Result<NonNull<u16>, AllocationError>;
+
+    /// Safe wrapper around `free_memory` method of the MemoryManager object
+    /// to free memory block
+    /// # Arguments
+    /// * `ptr` - pointer to the memory block to free
+    /// # Returns
+    /// `Result<(), ()>` - empty result
+    fn free_memory(&self, ptr: &mut *mut c_void);
+}
+
+impl MemoryManagerImpl for MemoryManager {
+    fn alloc_blob(&self, size: usize) -> Result<NonNull<u8>, AllocationError> {
         let mut ptr = ptr::null_mut::<c_void>();
         unsafe {
             if (self.vptr.alloc_memory)(self, &mut ptr, size as c_ulong * 2) {
@@ -51,16 +68,7 @@ impl MemoryManager {
         }
     }
 
-    /// Safe wrapper around `alloc_memory` method of the MemoryManager object
-    /// to allocate memory for UTF-16 string
-    /// # Arguments
-    /// * `size` - size of the memory block to allocate
-    /// # Returns
-    /// `Result<NonNull<u16>, AllocationError>` - pointer to the allocated memory block
-    pub fn alloc_str(
-        &self,
-        size: usize,
-    ) -> Result<NonNull<u16>, AllocationError> {
+    fn alloc_str(&self, size: usize) -> Result<NonNull<u16>, AllocationError> {
         let mut ptr = ptr::null_mut::<c_void>();
         unsafe {
             if (self.vptr.alloc_memory)(self, &mut ptr, size as c_ulong * 2) {
@@ -74,13 +82,7 @@ impl MemoryManager {
         }
     }
 
-    /// Safe wrapper around `free_memory` method of the MemoryManager object
-    /// to free memory block
-    /// # Arguments
-    /// * `ptr` - pointer to the memory block to free
-    /// # Returns
-    /// `Result<(), ()>` - empty result
-    pub fn free_memory(&self, ptr: &mut *mut c_void) {
+    fn free_memory(&self, ptr: &mut *mut c_void) {
         unsafe {
             (self.vptr.free_memory)(self, ptr);
         }

@@ -35,12 +35,20 @@ pub struct MyAddIn {
     pub bool_prop_r: bool,
     #[add_in_prop(ty = Bool, name = "prp_W_bool", name_ru = "свств_W_bool", writable)]
     pub bool_prop_w: bool,
+
     #[add_in_prop(ty = Date, name = "prp_RW_date", name_ru = "свств_RW_date", readable, writable)]
     pub date_prop_rw: chrono::NaiveDateTime,
     #[add_in_prop(ty = Date, name = "prp_R_date", name_ru = "свств_R_date", readable)]
     pub date_prop_r: chrono::NaiveDateTime,
     #[add_in_prop(ty = Date, name = "prp_W_date", name_ru = "свств_W_date", writable)]
     pub date_prop_w: chrono::NaiveDateTime,
+
+    #[add_in_prop(ty = Blob, name = "prp_RW_blob", name_ru = "свств_RW_blob", readable, writable)]
+    pub blob_prop_rw: Vec<u8>,
+    #[add_in_prop(ty = Blob, name = "prp_R_blob", name_ru = "свств_R_blob", readable)]
+    pub blob_prop_r: Vec<u8>,
+    #[add_in_prop(ty = Blob, name = "prp_W_blob", name_ru = "свств_W_blob", writable)]
+    pub blob_prop_w: Vec<u8>,
 }
 
 impl MyAddIn {
@@ -62,6 +70,9 @@ impl MyAddIn {
             date_prop_rw: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
             date_prop_r: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
             date_prop_w: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            blob_prop_rw: Vec::new(),
+            blob_prop_r: Vec::new(),
+            blob_prop_w: Vec::new(),
         }
     }
 }

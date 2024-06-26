@@ -1,7 +1,85 @@
-use crate::ffi::{
-    connection::Connection,
-    provided_types::{ParamValue, ReturnValue},
+use std::{
+    fmt::Error,
+    ops::{Index, IndexMut},
 };
+
+use crate::ffi::{connection::Connection, provided_types::Tm};
+
+/// Represents 1C variant values for parameters in safe Rust code.
+#[derive(Clone)]
+pub enum ParamValue {
+    /// Empty value
+    Empty,
+    /// Boolean value
+    Bool(bool),
+    /// Integer value
+    I32(i32),
+    /// Float value
+    F64(f64),
+    /// Date-time value
+    Date(Tm),
+    /// UTF-16 string value
+    Str(Vec<u16>),
+    /// Blob value
+    Blob(Vec<u8>),
+}
+
+impl PartialEq for ParamValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Empty, Self::Empty) => true,
+            (Self::Bool(a), Self::Bool(b)) => a == b,
+            (Self::I32(a), Self::I32(b)) => a == b,
+            (Self::F64(a), Self::F64(b)) => a == b,
+            (Self::Date(a), Self::Date(b)) => a == b,
+            (Self::Str(a), Self::Str(b)) => a == b,
+            (Self::Blob(a), Self::Blob(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+/// Represents 1C variant values for return values in safe Rust code.
+/// Only creator of the object can set the initial value, therefor has
+/// control over count of values.
+#[derive(Clone)]
+pub struct ParamValues {
+    values: Vec<ParamValue>,
+}
+
+impl ParamValues {
+    pub fn new(values: Vec<ParamValue>) -> Self {
+        Self { values }
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<ParamValue> {
+        self.values.iter()
+    }
+}
+
+impl Index<usize> for ParamValues {
+    type Output = ParamValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.values[index]
+    }
+}
+
+impl IndexMut<usize> for ParamValues {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.values[index]
+    }
+}
+
+pub type AddInWrapperResult<T> = Result<T, Box<Error>>;
 
 /// `AddInWrapper` trait is used to implement the 1C AddIn interface,
 /// and is used in FFI to get necessary information about the AddIn
@@ -69,7 +147,7 @@ pub trait AddInWrapper {
     /// * `val` - pointer to the ReturnValue object that will be used to return the value
     /// # Returns
     /// `bool` - operation success status
-    fn get_prop_val(&self, num: usize, val: ReturnValue) -> bool;
+    fn get_prop_val(&self, num: usize) -> AddInWrapperResult<ParamValue>;
 
     /// Equivalent to `SetPropVal` from Native API interface and is used to set the value of the property
     /// with the given index
@@ -78,7 +156,11 @@ pub trait AddInWrapper {
     /// * `val` - pointer to the ParamValue object that contains the value
     /// # Returns
     /// `bool` - operation success status
-    fn set_prop_val(&mut self, num: usize, val: &ParamValue) -> bool;
+    fn set_prop_val(
+        &mut self,
+        num: usize,
+        val: ParamValue,
+    ) -> AddInWrapperResult<()>;
 
     /// Equivalent to `IsPropReadable` from Native API interface and is used to check if the property
     /// with the given index is readable
@@ -139,8 +221,7 @@ pub trait AddInWrapper {
         &self,
         method_num: usize,
         param_num: usize,
-        value: ReturnValue,
-    ) -> bool;
+    ) -> Option<ParamValue>;
 
     /// Equivalent to `HasRetVal` from Native API interface and is used to check if method
     /// with the given index returns a value
@@ -160,8 +241,8 @@ pub trait AddInWrapper {
     fn call_as_proc(
         &mut self,
         method_num: usize,
-        params: &mut [ParamValue],
-    ) -> bool;
+        params: &mut ParamValues,
+    ) -> AddInWrapperResult<()>;
 
     /// Equivalent to `CallAsFunc` from Native API interface and is used to call method
     /// with the given index as a function, meaning that it returns a value
@@ -174,9 +255,8 @@ pub trait AddInWrapper {
     fn call_as_func(
         &mut self,
         method_num: usize,
-        params: &mut [ParamValue],
-        val: ReturnValue,
-    ) -> bool;
+        params: &mut ParamValues,
+    ) -> AddInWrapperResult<ParamValue>;
 
     /// Equivalent to `SetLocale` from Native API interface and is used to set the locale
     /// of the AddIn. It's marked as deprecated in 1C documentation, but is still available

@@ -1,10 +1,8 @@
 use super::{
-    get_str,
-    memory_manager::MemoryManagerImpl,
-    offset,
-    provided_types::{ParamValue, ReturnValue, TVariant},
+    get_str, memory_manager::MemoryManagerImpl, offset,
+    provided_types::TVariant,
 };
-use crate::interface::AddInWrapper;
+use crate::interface::{AddInWrapper, ParamValue, ParamValues};
 use std::{
     ffi::c_long,
     ptr::{self},
@@ -123,22 +121,23 @@ unsafe extern "system" fn get_prop_name<T: AddInWrapper>(
 }
 
 unsafe extern "system" fn get_prop_val<T: AddInWrapper>(
-    component: &mut This<T>,
+    this: &mut This<T>,
     num: c_long,
     val: &mut TVariant,
 ) -> bool {
-    let component = component.get_component();
-    let Some(mem) = component.memory_manager_ptr else {
+    let component = this.get_component();
+    let Some(mem_mngr) = component.memory_manager_ptr else {
         return false;
     };
 
-    let mut result = true;
-    let return_value = ReturnValue {
-        mem,
-        variant: val,
-        result: &mut result,
-    };
-    component.addin.get_prop_val(num as usize, return_value) && result
+    let prop_val_result = component.addin.get_prop_val(num as usize);
+    match prop_val_result {
+        Ok(prop_val) => {
+            val.update_from_return(mem_mngr, &prop_val);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 unsafe extern "system" fn set_prop_val<T: AddInWrapper>(
@@ -146,17 +145,17 @@ unsafe extern "system" fn set_prop_val<T: AddInWrapper>(
     num: c_long,
     val: &TVariant,
 ) -> bool {
-    let component = this.get_component();
-    let param = ParamValue::from(val);
-    component.addin.set_prop_val(num as usize, &param)
+    this.get_component()
+        .addin
+        .set_prop_val(num as usize, val.into())
+        .is_ok()
 }
 
 unsafe extern "system" fn is_prop_readable<T: AddInWrapper>(
     this: &mut This<T>,
     num: c_long,
 ) -> bool {
-    let component = this.get_component();
-    component.addin.is_prop_readable(num as usize)
+    this.get_component().addin.is_prop_readable(num as usize)
 }
 
 unsafe extern "system" fn is_prop_writable<T: AddInWrapper>(
@@ -233,18 +232,16 @@ unsafe extern "system" fn get_param_def_value<T: AddInWrapper>(
         return false;
     };
 
-    let mut result = true;
-    let return_value = ReturnValue {
-        mem,
-        variant: val,
-        result: &mut result,
-    };
-
-    component.addin.get_param_def_value(
-        method_num as usize,
-        param_num as usize,
-        return_value,
-    ) && result
+    let def_value_result = component
+        .addin
+        .get_param_def_value(method_num as usize, param_num as usize);
+    match def_value_result {
+        Some(def_value) => {
+            val.update_from_return(mem, &def_value);
+            true
+        }
+        None => false,
+    }
 }
 
 unsafe extern "system" fn has_ret_val<T: AddInWrapper>(
@@ -267,44 +264,19 @@ unsafe extern "system" fn call_as_proc<T: AddInWrapper>(
     };
 
     let parameters_raw = from_raw_parts_mut(params, size_array as usize);
-    let mut parameters_values = parameters_raw
-        .iter()
-        .map(ParamValue::from)
-        .collect::<Vec<ParamValue>>();
-    let parameters_values_buf = parameters_values.clone();
+    let mut parameters_values =
+        ParamValues::new(parameters_raw.iter().map(ParamValue::from).collect());
 
     let call_result = component
         .addin
         .call_as_proc(method_num as usize, &mut parameters_values);
-    if !call_result {
-        return false;
-    }
-    if parameters_values.len() != parameters_values_buf.len() {
+
+    if call_result.is_err() {
         return false;
     }
 
-    for i in 0..parameters_values.len() {
-        let raw_param = &mut parameters_raw[i];
-        if parameters_values_buf[i] == parameters_values[i] {
-            continue;
-        }
-        match &parameters_values[i] {
-            ParamValue::Str(v) => {
-                let Ok(_) = raw_param.update_to_str(mem_mngr, v) else {
-                    return false;
-                };
-            }
-            ParamValue::Blob(v) => {
-                let Ok(_) = raw_param.update_to_blob(mem_mngr, v) else {
-                    return false;
-                };
-            }
-            ParamValue::Bool(v) => raw_param.update_to_bool(*v),
-            ParamValue::I32(v) => raw_param.update_to_i32(*v),
-            ParamValue::F64(v) => raw_param.update_to_f64(*v),
-            ParamValue::Date(v) => raw_param.update_to_date(*v),
-            ParamValue::Empty => {}
-        }
+    for (i, param) in parameters_values.iter().enumerate() {
+        parameters_raw[i].update_from_return(mem_mngr, param);
     }
 
     true
@@ -322,57 +294,22 @@ unsafe extern "system" fn call_as_func<T: AddInWrapper>(
         return false;
     };
 
-    let mut result = true;
-    let return_value = ReturnValue {
-        mem: mem_mngr,
-        variant: ret_value,
-        result: &mut result,
+    let parameters_raw = from_raw_parts_mut(params, size_array as usize);
+    let mut parameters_values =
+        ParamValues::new(parameters_raw.iter().map(ParamValue::from).collect());
+
+    let call_result = component
+        .addin
+        .call_as_func(method_num as usize, &mut parameters_values);
+
+    let Ok(ret_val) = call_result else {
+        return false;
     };
 
-    let parameters_raw = from_raw_parts_mut(params, size_array as usize);
-    let mut parameters_values = parameters_raw
-        .iter()
-        .map(ParamValue::from)
-        .collect::<Vec<ParamValue>>();
-    let parameters_values_buf = parameters_values.clone();
+    ret_value.update_from_return(mem_mngr, &ret_val);
 
-    let call_result = component.addin.call_as_func(
-        method_num as usize,
-        &mut parameters_values,
-        return_value,
-    );
-    if !call_result {
-        return false;
-    }
-    if !result {
-        return false;
-    }
-    if parameters_values.len() != parameters_values_buf.len() {
-        return false;
-    }
-
-    for i in 0..parameters_values.len() {
-        let raw_param = &mut parameters_raw[i];
-        if parameters_values_buf[i] == parameters_values[i] {
-            continue;
-        }
-        match &parameters_values[i] {
-            ParamValue::Str(v) => {
-                let Ok(_) = raw_param.update_to_str(mem_mngr, v) else {
-                    return false;
-                };
-            }
-            ParamValue::Blob(v) => {
-                let Ok(_) = raw_param.update_to_blob(mem_mngr, v) else {
-                    return false;
-                };
-            }
-            ParamValue::Bool(v) => raw_param.update_to_bool(*v),
-            ParamValue::I32(v) => raw_param.update_to_i32(*v),
-            ParamValue::F64(v) => raw_param.update_to_f64(*v),
-            ParamValue::Date(v) => raw_param.update_to_date(*v),
-            ParamValue::Empty => {}
-        }
+    for (i, param) in parameters_values.iter().enumerate() {
+        parameters_raw[i].update_from_return(mem_mngr, param);
     }
 
     true

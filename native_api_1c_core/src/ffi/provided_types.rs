@@ -6,6 +6,8 @@ use std::{
 
 use chrono::{Datelike, Timelike};
 
+use crate::interface::ParamValue;
+
 use super::memory_manager::{
     AllocationError, MemoryManager, MemoryManagerImpl,
 };
@@ -203,40 +205,6 @@ impl<'a> ReturnValue<'a> {
     }
 }
 
-/// Represents 1C variant values for parameters
-#[derive(Clone)]
-pub enum ParamValue {
-    /// Empty value
-    Empty,
-    /// Boolean value
-    Bool(bool),
-    /// Integer value
-    I32(i32),
-    /// Float value
-    F64(f64),
-    /// Date-time value
-    Date(Tm),
-    /// UTF-16 string value
-    Str(Vec<u16>),
-    /// Blob value
-    Blob(Vec<u8>),
-}
-
-impl PartialEq for ParamValue {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Empty, Self::Empty) => true,
-            (Self::Bool(a), Self::Bool(b)) => a == b,
-            (Self::I32(a), Self::I32(b)) => a == b,
-            (Self::F64(a), Self::F64(b)) => a == b,
-            (Self::Date(a), Self::Date(b)) => a == b,
-            (Self::Str(a), Self::Str(b)) => a == b,
-            (Self::Blob(a), Self::Blob(b)) => a == b,
-            _ => false,
-        }
-    }
-}
-
 impl<'a> From<&'a TVariant> for ParamValue {
     fn from(param: &'a TVariant) -> ParamValue {
         unsafe {
@@ -422,5 +390,25 @@ impl TVariant {
     pub fn update_to_date(&mut self, v: Tm) {
         self.value.tm = v;
         self.vt = VariantType::Time;
+    }
+
+    pub fn update_from_return(
+        &mut self,
+        mem_mngr: &MemoryManager,
+        value: &ParamValue,
+    ) {
+        match value {
+            ParamValue::Empty => self.vt = VariantType::Empty,
+            ParamValue::Bool(v) => self.update_to_bool(*v),
+            ParamValue::I32(v) => self.update_to_i32(*v),
+            ParamValue::F64(v) => self.update_to_f64(*v),
+            ParamValue::Date(v) => self.update_to_date(*v),
+            ParamValue::Str(v) => {
+                let _ = unsafe { self.update_to_str(mem_mngr, v.as_slice()) };
+            }
+            ParamValue::Blob(v) => {
+                let _ = unsafe { self.update_to_blob(mem_mngr, v.as_slice()) };
+            }
+        }
     }
 }

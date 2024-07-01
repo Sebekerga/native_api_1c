@@ -6,9 +6,9 @@ use functions::{collectors::*, parse::parse_functions};
 use props::{collectors::*, parse::parse_props};
 use utils::{macros::tkn_err, str_literal_token};
 
-mod common_generators;
 mod constants;
 mod functions;
+mod parsers;
 mod props;
 mod utils;
 
@@ -37,7 +37,10 @@ fn derive_result(input: &DeriveInput) -> Result<TokenStream, TokenStream> {
 fn build_impl_block(input: &DeriveInput) -> Result<proc_macro2::TokenStream, darling::Error> {
     let struct_ident = &input.ident;
     let syn::Data::Struct(struct_data) = &input.data else {
-        return tkn_err!("AddIn can only be derived for structs", &struct_ident.span());
+        return tkn_err!(
+            "AddIn can only be derived for structs",
+            &struct_ident.span()
+        );
     };
     let add_in_name_literal = str_literal_token(&struct_ident.to_string(), struct_ident)?;
 

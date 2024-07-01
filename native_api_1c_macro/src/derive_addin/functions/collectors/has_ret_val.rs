@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::derive_addin::functions::{FuncDesc, ReturnType};
+use crate::derive_addin::functions::FuncDesc;
 
 use super::{empty_func_collector_error, FunctionCollector};
 
@@ -19,25 +19,24 @@ impl Default for HasReturnValueCollector {
 
 impl<'a> FromIterator<(usize, &'a FuncDesc)> for HasReturnValueCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a FuncDesc)>>(iter: T) -> Self {
-        let mut has_ret_val_body = TokenStream::new();
+        let mut body = TokenStream::new();
 
         for (func_index, func_desc) in iter {
-            let has_ret_val = !matches!(func_desc.return_value.ty, ReturnType::None);
-            has_ret_val_body.extend(quote! {
-                #has_ret_val_body
+            let has_ret_val = func_desc.return_value.ty.is_some();
+            body.extend(quote! {
                 if method_num == #func_index { return #has_ret_val };
             });
         }
 
-        let has_ret_val_definition = quote! {
+        let definition = quote! {
             fn has_ret_val(&self, method_num: usize) -> bool {
-                #has_ret_val_body
+                #body
                 false
             }
         };
 
         Self {
-            generated: Ok(has_ret_val_definition),
+            generated: Ok(definition),
         }
     }
 }

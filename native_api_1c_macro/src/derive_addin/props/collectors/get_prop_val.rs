@@ -1,11 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::derive_addin::{
-    common_generators::{param_ty_to_ffi_return, SettableTypes},
-    props::PropDesc,
-    utils::macros::tkn_err_inner,
-};
+use crate::derive_addin::{props::PropDesc, utils::expr_to_os_value};
 
 use super::{empty_prop_collector_error, PropCollector};
 
@@ -23,46 +19,34 @@ impl Default for GetPropValCollector {
 
 impl<'a> FromIterator<(usize, &'a PropDesc)> for GetPropValCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a PropDesc)>>(iter: T) -> Self {
-        let mut get_prop_val_body = TokenStream::new();
+        let mut body = TokenStream::new();
 
         for (prop_index, prop_desc) in iter {
             if !prop_desc.readable {
+                // Skip non-readable properties
                 continue;
             }
 
-            let prop_settable: SettableTypes = match (&prop_desc.ty).try_into().map_err(|_| {
-                tkn_err_inner!(
-                    "Incorrectly attempted to convert type to settable",
-                    &prop_desc.ident.span()
-                )
-            }) {
-                Ok(settable) => settable,
-                Err(err) => {
-                    return Self {
-                        generated: Err(err),
-                    }
-                }
-            };
             let prop_ident = &prop_desc.ident;
-            let ffi_set_tkn =
-                param_ty_to_ffi_return(&prop_settable, quote! { val }, quote! {self.#prop_ident});
-            get_prop_val_body.extend(quote! {
+            let prop_setter = expr_to_os_value(&quote! {self.#prop_ident}, &prop_desc.ty, false);
+            body.extend(quote! {
                 if num == #prop_index {
-                    #ffi_set_tkn;
-                    return true;
+                    return Ok(#prop_setter);
                 };
             });
         }
 
-        let _definition = quote! {
-            fn get_prop_val(&self, num: usize, val: native_api_1c::native_api_1c_core::ffi::provided_types::ReturnValue) -> bool {
-                #get_prop_val_body
-                false
+        let definition = quote! {
+            fn get_prop_val(&self, num: usize) -> native_api_1c::native_api_1c_core::interface::AddInWrapperResult<
+                native_api_1c::native_api_1c_core::interface::ParamValue
+            > {
+                #body
+                return Err(())
             }
         };
 
         Self {
-            generated: Ok(_definition),
+            generated: Ok(definition),
         }
     }
 }

@@ -1,10 +1,10 @@
 use darling::{FromField, FromMeta};
-use quote::ToTokens;
+
 use syn::{Attribute, DataStruct};
 
-use crate::derive_addin::utils::ident_option_to_darling_err;
+use crate::derive_addin::{parsers::PropName, utils::ident_option_to_darling_err};
 
-use super::{PropDesc, PropType};
+use super::{ParamType, PropDesc};
 
 impl FromField for PropDesc {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
@@ -30,20 +30,11 @@ impl FromField for PropDesc {
 
         let prop_meta = PropMeta::from_meta(&add_in_prop_attr.meta)?;
 
-        let name_literal = match prop_meta.name {
-            PropName::StringLiteral(name) => name.to_token_stream(),
-            PropName::Ident(ident) => ident.to_token_stream(),
-        };
-        let name_ru_literal = match prop_meta.name_ru {
-            PropName::StringLiteral(name_ru) => name_ru.to_token_stream(),
-            PropName::Ident(ident) => ident.to_token_stream(),
-        };
-
-        Ok(PropDesc {
+        Ok(Self {
             ident: field_ident.clone(),
 
-            name_literal,
-            name_ru_literal,
+            name_literal: prop_meta.name.into(),
+            name_ru_literal: prop_meta.name_ru.into(),
 
             readable: prop_meta.readable.is_some(),
             writable: prop_meta.writable.is_some(),
@@ -52,28 +43,9 @@ impl FromField for PropDesc {
     }
 }
 
-#[derive(Debug)]
-pub enum PropName {
-    StringLiteral(syn::LitStr),
-    Ident(syn::ExprPath),
-}
-
-impl FromMeta for PropName {
-    fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
-        match expr {
-            syn::Expr::Lit(lit) => match &lit.lit {
-                syn::Lit::Str(str_lit) => Ok(PropName::StringLiteral(str_lit.clone())),
-                _ => Err(darling::Error::custom("expected string literal").with_span(expr)),
-            },
-            syn::Expr::Path(path) => Ok(PropName::Ident(path.clone())),
-            _ => Err(darling::Error::custom("expected string literal or path").with_span(expr)),
-        }
-    }
-}
-
 #[derive(FromMeta, Debug)]
 pub struct PropMeta {
-    pub ty: PropType,
+    pub ty: ParamType,
     pub name: PropName,
     pub name_ru: PropName,
     pub readable: Option<()>,

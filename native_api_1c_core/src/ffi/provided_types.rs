@@ -26,7 +26,7 @@ use super::memory_manager::{
 /// * `gmtoff` - seconds east of UTC (unix only)
 /// * `zone` - timezone abbreviation (unix only)
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Tm {
     pub sec: c_int,
     pub min: c_int,
@@ -44,18 +44,39 @@ pub struct Tm {
     pub zone: std::ffi::c_char,
 }
 
-impl TryFrom<&Tm> for chrono::NaiveDateTime {
-    type Error = ();
+impl From<&Tm> for chrono::NaiveDateTime {
+    fn from(value: &Tm) -> Self {
+        let default_time = chrono::NaiveDate::from_ymd_opt(1970, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
 
-    fn try_from(value: &Tm) -> Result<Self, Self::Error> {
-        chrono::NaiveDate::from_ymd_opt(
+        let from_result = chrono::NaiveDate::from_ymd_opt(
             1900 + value.year,
             (1 + value.mon) as u32,
             (value.mday) as u32,
         )
-        .ok_or(())?
-        .and_hms_opt(value.hour as u32, value.min as u32, value.sec as u32)
-        .ok_or(())
+        .ok_or(());
+        if from_result.is_err() {
+            return default_time;
+        }
+
+        let from_result = from_result.unwrap().and_hms_opt(
+            value.hour as u32,
+            value.min as u32,
+            value.sec as u32,
+        );
+        if from_result.is_none() {
+            return default_time;
+        }
+
+        from_result.unwrap()
+    }
+}
+
+impl From<Tm> for chrono::NaiveDateTime {
+    fn from(value: Tm) -> Self {
+        Self::from(&value)
     }
 }
 
@@ -214,7 +235,7 @@ impl<'a> From<&'a TVariant> for ParamValue {
                 VariantType::Int32 => Self::I32(param.value.i32),
                 VariantType::Double => Self::F64(param.value.f64),
                 VariantType::Time => Self::Date(param.value.tm),
-                VariantType::WStr => Self::Str(
+                VariantType::WStr => Self::String(
                     from_raw_parts(
                         param.value.data_str.ptr,
                         param.value.data_str.len as usize,
@@ -403,7 +424,7 @@ impl TVariant {
             ParamValue::I32(v) => self.update_to_i32(*v),
             ParamValue::F64(v) => self.update_to_f64(*v),
             ParamValue::Date(v) => self.update_to_date(*v),
-            ParamValue::Str(v) => {
+            ParamValue::String(v) => {
                 let _ = unsafe { self.update_to_str(mem_mngr, v.as_slice()) };
             }
             ParamValue::Blob(v) => {

@@ -3,9 +3,12 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{spanned::Spanned, Attribute, DataStruct, Meta};
 
-use crate::derive_addin::utils::{ident_option_to_darling_err, str_literal_token};
+use crate::derive_addin::{
+    parsers::{ParamType, PropName},
+    utils::ident_option_to_darling_err,
+};
 
-use super::{FuncArgumentDesc, FuncDesc, ParamType, ReturnType, ReturnTypeDesc};
+use super::{FuncArgumentDesc, FuncDesc, FuncParamType, ReturnTypeDesc};
 
 impl FromField for FuncDesc {
     fn from_field(field: &syn::Field) -> darling::Result<Self> {
@@ -46,7 +49,7 @@ impl FromField for FuncDesc {
                     .with_span(field_ident),
             );
         };
-        let returns_attr = returns_attrs.get(0).copied();
+        let returns_attr = returns_attrs.first().copied();
 
         let func_meta = FuncHeadMeta::from_meta(&add_in_func_attr.meta)?;
         let params_meta = arg_attrs
@@ -56,6 +59,13 @@ impl FromField for FuncDesc {
         let return_meta = returns_attr
             .map(|attr| FuncReturnMeta::from_meta(&attr.meta))
             .transpose()?;
+        let return_value = match return_meta {
+            Some(meta) => ReturnTypeDesc::from(meta),
+            None => ReturnTypeDesc {
+                ty: None,
+                result: false,
+            },
+        };
 
         let mut params = params_meta
             .into_iter()
@@ -63,20 +73,11 @@ impl FromField for FuncDesc {
             .map(|res| res.map_err(|err| err.into()))
             .collect::<Result<Vec<FuncArgumentDesc>, darling::Error>>()?;
 
-        let return_value = match return_meta {
-            Some(return_meta) => FuncReturnDesc::try_from(return_meta),
-            None => Ok(FuncReturnDesc {
-                ty: ReturnType::None,
-                result: false,
-            }),
-        };
-        let return_value: Result<FuncReturnDesc, darling::Error> =
-            return_value.map_err(|err| err.into());
-        let return_value = return_value?;
-
         let syn::Type::BareFn(bare_fn) = &field.ty else {
-            return Err(darling::Error::custom("AddIn functions must have bare `fn` type")
-                .with_span(field_ident));
+            return Err(
+                darling::Error::custom("AddIn functions must have bare `fn` type")
+                    .with_span(field_ident),
+            );
         };
 
         if let Some(first_input) = bare_fn.inputs.first() {
@@ -92,7 +93,7 @@ impl FromField for FuncDesc {
                     params.insert(
                         0,
                         FuncArgumentDesc {
-                            ty: ParamType::SelfType,
+                            ty: FuncParamType::SelfType,
                             default: None,
                             out_param: reference.mutability.is_some(),
                         },
@@ -101,37 +102,28 @@ impl FromField for FuncDesc {
             };
         };
 
-        let name_literal = str_literal_token(&func_meta.name, field_ident)?;
-        let name_ru_literal = str_literal_token(&func_meta.name_ru, field_ident)?;
-
         Ok(Self {
             ident: field_ident.to_owned(),
 
-            name: func_meta.name,
-            name_ru: func_meta.name_ru,
-
-            name_literal,
-            name_ru_literal,
+            name_literal: func_meta.name.into(),
+            name_ru_literal: func_meta.name_ru.into(),
 
             params,
-            return_value: ReturnTypeDesc {
-                ty: return_value.ty,
-                result: return_value.result,
-            },
+            return_value,
         })
     }
 }
 
 #[derive(FromMeta, Debug)]
 struct FuncHeadMeta {
-    name: String,
-    name_ru: String,
+    name: PropName,
+    name_ru: PropName,
 }
 
 #[derive(FromMeta, Debug)]
 struct FuncArgumentMeta {
     ident: Option<syn::Ident>,
-    ty: ParamType,
+    ty: FuncParamType,
     default: Option<Meta>,
     #[allow(dead_code)]
     as_in: Option<()>,
@@ -150,14 +142,16 @@ impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
             ));
         }
 
-        let allowed_defaults = match arg_meta.ty {
-            ParamType::Bool => true,
-            ParamType::I32 => true,
-            ParamType::F64 => true,
-            ParamType::String => true,
-            ParamType::Date => false,
-            ParamType::Blob => false,
-            ParamType::SelfType => false,
+        let allowed_defaults = match arg_meta.ty.clone() {
+            FuncParamType::SelfType => false,
+            FuncParamType::PlatformType(ty) => match ty {
+                ParamType::Bool => true,
+                ParamType::I32 => true,
+                ParamType::F64 => true,
+                ParamType::String => true,
+                ParamType::Date => false,
+                ParamType::Blob => false,
+            },
         };
 
         if arg_meta.default.is_some() && !allowed_defaults {
@@ -182,34 +176,24 @@ impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
     }
 }
 
-pub struct FuncReturnDesc {
-    pub ty: ReturnType,
-    pub result: bool,
-}
-
 #[derive(FromMeta, Debug)]
 struct FuncReturnMeta {
-    ty: Option<ReturnType>,
+    ty: Option<ParamType>,
     result: Option<()>,
 }
 
-impl TryFrom<FuncReturnMeta> for FuncReturnDesc {
-    type Error = ErrorConvertingMeta;
-
-    fn try_from(arg_meta: FuncReturnMeta) -> Result<Self, Self::Error> {
-        Ok(Self {
-            ty: match arg_meta.ty {
-                Some(ty) => ty,
-                None => ReturnType::None,
-            },
+impl From<FuncReturnMeta> for ReturnTypeDesc {
+    fn from(arg_meta: FuncReturnMeta) -> Self {
+        Self {
+            ty: arg_meta.ty,
             result: arg_meta.result.is_some(),
-        })
+        }
     }
 }
 
 pub enum ErrorConvertingMeta {
     UnexpectedMetaType(Span),
-    TypeCannotBeDefault(ParamType, Span),
+    TypeCannotBeDefault(FuncParamType, Span),
     InvalidTypeForParam(Span, String),
     InvalidTypeForReturn(Span, String),
     ConflictingParams(Span, String, String),

@@ -19,32 +19,30 @@ impl Default for CallAsProcCollector {
 
 impl<'a> FromIterator<(usize, &'a FuncDesc)> for CallAsProcCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a FuncDesc)>>(iter: T) -> Self {
-        let mut call_as_proc_body = TokenStream::new();
-
+        let mut body = TokenStream::new();
         for (func_index, func_desc) in iter {
-            let call_proc = func_call_tkn(func_desc, None);
-
-            call_as_proc_body.extend(quote! {
+            let call_func = func_call_tkn(func_desc, None);
+            body.extend(quote! {
                 if method_num == #func_index {
-                    #call_proc
-                    return true;
+                    #call_func
+                    return Ok(());
                 };
             });
         }
 
-        let call_as_proc_definition = quote! {
+        let definition = quote! {
             fn call_as_proc(
                 &mut self,
                 method_num: usize,
-                params: &mut [native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue],
-            ) -> bool {
-                #call_as_proc_body
-                false
+                params: &mut native_api_1c::native_api_1c_core::interface::ParamValues,
+            ) -> native_api_1c::native_api_1c_core::interface::AddInWrapperResult<()> {
+                #body
+                Err(())
             }
         };
 
         Self {
-            generated: Ok(call_as_proc_definition),
+            generated: Ok(definition),
         }
     }
 }

@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::derive_addin::props::{generate::param_ty_to_ffi_set, PropDesc};
+use crate::derive_addin::{props::PropDesc, utils::expr_from_os_value};
 
 use super::{empty_prop_collector_error, PropCollector};
 
@@ -19,7 +19,7 @@ impl Default for SetPropValCollector {
 
 impl<'a> FromIterator<(usize, &'a PropDesc)> for SetPropValCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a PropDesc)>>(iter: T) -> Self {
-        let mut set_prop_val_body = TokenStream::new();
+        let mut body = TokenStream::new();
 
         for (prop_index, prop_desc) in iter {
             if !prop_desc.writable {
@@ -27,27 +27,29 @@ impl<'a> FromIterator<(usize, &'a PropDesc)> for SetPropValCollector {
             }
 
             let prop_ident = &prop_desc.ident;
-            let prop_set_tkn = param_ty_to_ffi_set(&prop_desc.ty, quote! { #prop_ident });
-            set_prop_val_body.extend(quote! {
+            let prop_getter = expr_from_os_value(&quote! { val }, &prop_desc.ty);
+
+            body.extend(quote! {
                 if num == #prop_index {
-                    match val {
-                        #prop_set_tkn
-                        _ => return false,
-                    }
-                    return true;
+                    self.#prop_ident = #prop_getter.into();
+                    return Ok(());
                 };
             });
         }
 
-        let _definition = quote! {
-            fn set_prop_val(&mut self, num: usize, val: &native_api_1c::native_api_1c_core::ffi::provided_types::ParamValue) -> bool {
-                #set_prop_val_body
-                false
+        let definition = quote! {
+            fn set_prop_val(
+                &mut self,
+                num: usize,
+                val: native_api_1c::native_api_1c_core::interface::ParamValue,
+            ) -> native_api_1c::native_api_1c_core::interface::AddInWrapperResult<()> {
+                #body
+                return Err(())
             }
         };
 
         Self {
-            generated: Ok(_definition),
+            generated: Ok(definition),
         }
     }
 }

@@ -1,11 +1,8 @@
+use super::super::super::utils::expr_to_os_value;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 
-use crate::derive_addin::{
-    common_generators::{param_ty_to_ffi_return, SettableTypes},
-    functions::FuncDesc,
-    utils::macros::tkn_err_inner,
-};
+use crate::derive_addin::functions::{FuncDesc, FuncParamType};
 
 use super::{empty_func_collector_error, FunctionCollector};
 
@@ -23,64 +20,49 @@ impl Default for GetParamDefValueCollector {
 
 impl<'a> FromIterator<(usize, &'a FuncDesc)> for GetParamDefValueCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a FuncDesc)>>(iter: T) -> Self {
-        let mut get_param_def_value_body = TokenStream::new();
+        let mut body = TokenStream::new();
 
         for (func_index, func_desc) in iter {
-            let mut this_get_param_def_value_body = quote! {};
-            for (i, arg_desc) in func_desc.get_1c_params().iter().enumerate() {
-                match &arg_desc.default {
-                    Some(expr) => {
-                        let prop_settable: SettableTypes =
-                            match (&arg_desc.ty).try_into().map_err(|_| {
-                                tkn_err_inner!(
-                                    "Incorrectly attempted to convert type to settable",
-                                    &func_desc.ident.span()
-                                )
-                            }) {
-                                Ok(st) => st,
-                                Err(err) => {
-                                    return Self {
-                                        generated: Err(err),
-                                    }
-                                }
-                            };
-                        let value_setter = param_ty_to_ffi_return(
-                            &prop_settable,
-                            quote! { value },
-                            expr.into_token_stream(),
-                        );
-                        this_get_param_def_value_body.extend(quote! {
-                            if param_num == #i  {
-                                #value_setter;
-                                return true;
-                            }
-                        })
+            let mut func_body = quote! {};
+            for (arg_index, arg_desc) in func_desc.get_1c_params().iter().enumerate() {
+                let Some(expr) = &arg_desc.default else {
+                    // Skip parameters without default value
+                    continue;
+                };
+
+                let FuncParamType::PlatformType(ty) = &arg_desc.ty else {
+                    // Skip parameters that is not platform type
+                    continue;
+                };
+
+                let expr = expr_to_os_value(expr, ty, true);
+                func_body.extend(quote! {
+                    if param_num == #arg_index  {
+                        return Some(#expr);
                     }
-                    None => {}
-                }
+                })
             }
-            get_param_def_value_body.extend(quote! {
+            body.extend(quote! {
                 if method_num == #func_index {
-                    #this_get_param_def_value_body
-                    return false;
+                    #func_body
+                    return None;
                 };
             });
         }
 
-        let find_method_definition = quote! {
+        let definition = quote! {
             fn get_param_def_value(
                 &self,
                 method_num: usize,
                 param_num: usize,
-                value: native_api_1c::native_api_1c_core::ffi::provided_types::ReturnValue,
-            ) -> bool {
-                #get_param_def_value_body
-                false
+            ) -> Option<native_api_1c::native_api_1c_core::interface::ParamValue> {
+                #body
+                None
             }
         };
 
         Self {
-            generated: Ok(find_method_definition),
+            generated: Ok(definition),
         }
     }
 }

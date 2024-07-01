@@ -19,25 +19,24 @@ impl Default for GetNParamsCollector {
 
 impl<'a> FromIterator<(usize, &'a FuncDesc)> for GetNParamsCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a FuncDesc)>>(iter: T) -> Self {
-        let mut get_n_params_body = TokenStream::new();
+        let mut body = TokenStream::new();
 
         for (func_index, func_desc) in iter {
             let number_of_params = func_desc.get_1c_params().len();
-            get_n_params_body.extend(quote! {
-                #get_n_params_body
+            body.extend(quote! {
                 if num == #func_index { return #number_of_params };
             });
         }
 
-        let find_method_definition = quote! {
+        let definition = quote! {
             fn get_n_params(&self, num: usize) -> usize {
-                #get_n_params_body
+                #body
                 0
             }
         };
 
         Self {
-            generated: Ok(find_method_definition),
+            generated: Ok(definition),
         }
     }
 }

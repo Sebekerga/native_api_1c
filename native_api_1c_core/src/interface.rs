@@ -1,12 +1,9 @@
-use std::{
-    fmt::Error,
-    ops::{Index, IndexMut},
-};
+use std::ops::{Index, IndexMut};
 
 use crate::ffi::{connection::Connection, provided_types::Tm};
 
 /// Represents 1C variant values for parameters in safe Rust code.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ParamValue {
     /// Empty value
     Empty,
@@ -19,9 +16,35 @@ pub enum ParamValue {
     /// Date-time value
     Date(Tm),
     /// UTF-16 string value
-    Str(Vec<u16>),
+    String(Vec<u16>),
     /// Blob value
     Blob(Vec<u8>),
+}
+
+impl ParamValue {
+    pub fn set_bool(&mut self, val: bool) {
+        *self = Self::Bool(val);
+    }
+
+    pub fn set_i32(&mut self, val: i32) {
+        *self = Self::I32(val);
+    }
+
+    pub fn set_f64(&mut self, val: f64) {
+        *self = Self::F64(val);
+    }
+
+    pub fn set_date(&mut self, val: Tm) {
+        *self = Self::Date(val);
+    }
+
+    pub fn set_str(&mut self, val: Vec<u16>) {
+        *self = Self::String(val);
+    }
+
+    pub fn set_blob(&mut self, val: Vec<u8>) {
+        *self = Self::Blob(val);
+    }
 }
 
 impl PartialEq for ParamValue {
@@ -32,7 +55,7 @@ impl PartialEq for ParamValue {
             (Self::I32(a), Self::I32(b)) => a == b,
             (Self::F64(a), Self::F64(b)) => a == b,
             (Self::Date(a), Self::Date(b)) => a == b,
-            (Self::Str(a), Self::Str(b)) => a == b,
+            (Self::String(a), Self::String(b)) => a == b,
             (Self::Blob(a), Self::Blob(b)) => a == b,
             _ => false,
         }
@@ -79,7 +102,7 @@ impl IndexMut<usize> for ParamValues {
     }
 }
 
-pub type AddInWrapperResult<T> = Result<T, Box<Error>>;
+pub type AddInWrapperResult<T> = Result<T, ()>;
 
 /// `AddInWrapper` trait is used to implement the 1C AddIn interface,
 /// and is used in FFI to get necessary information about the AddIn
@@ -88,8 +111,9 @@ pub type AddInWrapperResult<T> = Result<T, Box<Error>>;
 /// All trait methods, that return bool, should return true if the operation was successful
 /// and false otherwise.
 ///
-/// Many of the are equivalents of methods in the 1C AddIn interface, and their
+/// Many of them are equivalents of methods in the 1C AddIn interface, and their
 /// descriptions can be found in the [1C documentation](https://its.1c.ru/db/metod8dev/content/3221/hdoc).
+#[allow(clippy::result_unit_err)]
 pub trait AddInWrapper {
     /// Equivalent to `Init` from Native API interface and is called when the AddIn is loaded by 1C platform
     /// and is used to pass the pointer to the 1C Connection object
@@ -114,7 +138,7 @@ pub trait AddInWrapper {
     /// Equivalent to `RegisterExtensionAs` from Native API interface and is used to get the name of the AddIn
     /// as it will be shown in 1C platform
     /// # Returns
-    /// `&[u16]` - name of the AddIn in UTF-16
+    /// `&[u16]` - name of the AddIn in UTF-16 with null-terminator
     fn register_extension_as(&mut self) -> &[u16];
 
     /// Equivalent to `GetNProps` from Native API interface and is used to get the number of properties
@@ -144,18 +168,17 @@ pub trait AddInWrapper {
     /// with the given index
     /// # Arguments
     /// * `num` - index of the property
-    /// * `val` - pointer to the ReturnValue object that will be used to return the value
     /// # Returns
-    /// `bool` - operation success status
+    /// `AddInWrapperResult<ParamValue>` - value of the property, or error if the property was not found
     fn get_prop_val(&self, num: usize) -> AddInWrapperResult<ParamValue>;
 
     /// Equivalent to `SetPropVal` from Native API interface and is used to set the value of the property
     /// with the given index
     /// # Arguments
     /// * `num` - index of the property
-    /// * `val` - pointer to the ParamValue object that contains the value
+    /// * `val` - value of the property
     /// # Returns
-    /// `bool` - operation success status
+    /// `AddInWrapperResult<()>` - operation result
     fn set_prop_val(
         &mut self,
         num: usize,
@@ -213,10 +236,9 @@ pub trait AddInWrapper {
     /// of the parameter
     /// # Arguments
     /// * `method_num` - index of method
-    /// * `param_num` - index of the parameter
-    /// * `value` - pointer to the ReturnValue object that will be used to return the value
+    /// * `param_num` - index of parameter
     /// # Returns
-    /// `bool` - operation success status
+    /// `Option<ParamValue>` - default value of the parameter or None if the parameter was not found
     fn get_param_def_value(
         &self,
         method_num: usize,
@@ -237,7 +259,7 @@ pub trait AddInWrapper {
     /// * `method_num` - index of method
     /// * `params` - slice of ParamValue objects that contain the parameters
     /// # Returns
-    /// `bool` - operation success status
+    /// `AddInWrapperResult<()>` - operation result
     fn call_as_proc(
         &mut self,
         method_num: usize,
@@ -249,9 +271,8 @@ pub trait AddInWrapper {
     /// # Arguments
     /// * `method_num` - index of method
     /// * `params` - slice of ParamValue objects that contain the parameters
-    /// * `val` - pointer to the ReturnValue object that will be used to return the value
     /// # Returns
-    /// `bool` - operation success status
+    /// `AddInWrapperResult<ParamValue>` - result of the method
     fn call_as_func(
         &mut self,
         method_num: usize,

@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use native_api_1c::native_api_1c_core::{
-    ffi::{connection::Connection, string_utils::os_string_nil},
-    interface::{AddInWrapper, ParamValue},
+    ffi::{
+        connection::Connection,
+        string_utils::{os_string, os_string_nil},
+    },
+    interface::{AddInWrapper, ParamValue, ParamValues},
 };
 use native_api_1c_macro::AddIn;
 use rstest::{fixture, rstest};
@@ -37,8 +40,7 @@ struct TestAddIn {
     #[add_in_func(name = PROCEDURE_NAME_EN, name_ru = PROCEDURE_NAME_RU)]
     #[arg(ty = Int)]
     #[arg(ty = Int, default = DEFAULT_VALUE)]
-    #[returns(ty = Str)]
-    pub procedure: fn(&mut Self, i32, i32) -> String,
+    pub procedure: fn(&mut Self, i32, i32),
 
     #[add_in_func(name = OUT_FUNCTION_NAME_EN, name_ru = OUT_FUNCTION_NAME_RU)]
     #[arg(ty = Str, as_out, default = OUT_STR)]
@@ -53,7 +55,6 @@ fn add_in() -> TestAddIn {
         function: |addin, a, b| Ok(a + b + addin.storage),
         procedure: |addin, a, b| {
             addin.storage = a + b;
-            format!("{} + {} = {}", a, b, addin.storage)
         },
         out_function: |out_str| {
             *out_str = format!("Hello, {out_str}!");
@@ -135,9 +136,50 @@ fn test_get_param_def_value(
 
 #[rstest]
 #[case(0, true)]
-#[case(1, true)]
+#[case(1, false)]
 #[case(2, false)]
 #[case(3, false)]
 fn test_has_ret_val(add_in: TestAddIn, #[case] method_i: usize, #[case] has_ret_val: bool) {
     assert_eq!(add_in.has_ret_val(method_i), has_ret_val);
+}
+
+#[rstest]
+fn test_call_function(mut add_in: TestAddIn) {
+    let a = ParamValue::I32(1);
+    let b = ParamValue::I32(2);
+    let mut params = ParamValues::new(vec![a, b]);
+
+    let result = add_in.call_as_func(0, &mut params);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), ParamValue::I32(1 + 2 + add_in.storage));
+
+    let result = add_in.call_as_proc(0, &mut params);
+    assert!(result.is_ok());
+}
+
+#[rstest]
+fn test_call_procedure(mut add_in: TestAddIn) {
+    let a = ParamValue::I32(1);
+    let b = ParamValue::I32(2);
+    let mut params = ParamValues::new(vec![a, b]);
+
+    let result = add_in.call_as_func(1, &mut params);
+    assert!(result.is_err());
+
+    let result = add_in.call_as_proc(1, &mut params);
+    assert!(result.is_ok());
+    assert_eq!(add_in.storage, 1 + 2);
+}
+
+#[rstest]
+fn test_call_out_function(mut add_in: TestAddIn) {
+    let out_str = os_string("1C");
+    let mut params = ParamValues::new(vec![ParamValue::String(out_str)]);
+
+    let result = add_in.call_as_func(2, &mut params);
+    assert!(result.is_err());
+
+    let result = add_in.call_as_proc(2, &mut params);
+    assert!(result.is_ok());
+    assert_eq!(params[0], ParamValue::String(os_string("Hello, 1C!")));
 }

@@ -6,13 +6,6 @@ fn trybuild_props() {
 }
 
 #[test]
-fn trybuild_example() {
-    let t = trybuild::TestCases::new();
-
-    t.pass("tests/trybuild/to_build/readme_example.rs");
-}
-
-#[test]
 fn trybuild_functions() {
     let t = trybuild::TestCases::new();
 

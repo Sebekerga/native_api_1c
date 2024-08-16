@@ -1,6 +1,6 @@
 [package]
 name = "native_api_1c"
-version = "0.10.5"
+version = "0.10.7"
 edition = "2021"
 repository = "https://github.com/Sebekerga/native_api_1c"
 license = "MIT"

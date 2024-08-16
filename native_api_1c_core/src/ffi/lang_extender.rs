@@ -1,7 +1,4 @@
-use super::{
-    get_str, memory_manager::MemoryManagerImpl, offset,
-    provided_types::TVariant,
-};
+use super::{get_str, offset, provided_types::TVariant};
 use crate::interface::{AddInWrapper, ParamValue, ParamValues};
 use std::{
     ffi::c_long,

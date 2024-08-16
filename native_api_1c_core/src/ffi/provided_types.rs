@@ -8,9 +8,7 @@ use chrono::{Datelike, Timelike};
 
 use crate::interface::ParamValue;
 
-use super::memory_manager::{
-    AllocationError, MemoryManager, MemoryManagerImpl,
-};
+use super::memory_manager::{AllocationError, MemoryManager};
 
 /// Type representing 1C date and time values
 /// # Fields
@@ -144,7 +142,7 @@ impl PartialEq for Tm {
 /// `variant` - pointer to the TVariant object
 /// `result` - pointer to the result of the operation
 pub struct ReturnValue<'a> {
-    pub mem: &'a dyn MemoryManagerImpl,
+    pub mem: &'a MemoryManager,
     pub variant: &'a mut TVariant,
     pub result: &'a mut bool,
 }
@@ -153,7 +151,7 @@ pub struct ReturnValue<'a> {
 impl<'a> ReturnValue<'a> {
     /// Creates a new ReturnValue object
     pub fn new(
-        mem: &'a dyn MemoryManagerImpl,
+        mem: &'a MemoryManager,
         variant: &'a mut TVariant,
         result: &'a mut bool,
     ) -> Self {

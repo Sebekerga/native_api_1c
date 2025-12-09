@@ -50,16 +50,24 @@ pub fn expr_to_os_value(
     ty: &ParamType,
     string_nil: bool,
 ) -> proc_macro2::TokenStream {
-    let os_string_fn = if string_nil {
-        quote! {native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil}
-    } else {
-        quote! {native_api_1c::native_api_1c_core::ffi::string_utils::os_string}
-    };
     match ty {
-        ParamType::String => quote! {
+        ParamType::String => {
+            let os_string_fn = if string_nil {
+                quote! {native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil}
+            } else {
+                quote! {native_api_1c::native_api_1c_core::ffi::string_utils::os_string}
+            };
+            quote! {
+                {
+                    let _ = "expr_to_os_value: specific case for String";
+                    #ty(#os_string_fn(&#expr.clone()).clone().into())
+                }
+            }
+        }
+        ParamType::Any => quote! {
             {
-                let _ = "expr_to_os_value: specific case for String";
-                #ty(#os_string_fn(&#expr.clone()).clone().into())
+                let _ = "expr_to_os_value: specific case for Any";
+                #expr.clone()
             }
         },
         _ => quote! {

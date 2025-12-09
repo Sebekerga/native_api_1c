@@ -22,10 +22,13 @@ const PROCEDURE_NAME_RU: &str = "Процедура";
 const OUT_FUNCTION_NAME_EN: &str = "OutFunction";
 const OUT_FUNCTION_NAME_RU: &str = "ВыводФункция";
 
+const ANY_ARG_NAME_EN: &str = "AnyArg";
+const ANY_ARG_NAME_RU: &str = "ЛюбойАргумент";
+
 const INVALID_NAME: &str = "Invalid";
 
 #[derive(AddIn)]
-struct TestAddIn {
+struct TestAddInFixture {
     #[add_in_con]
     connection: Arc<Option<&'static Connection>>,
 
@@ -45,11 +48,16 @@ struct TestAddIn {
     #[add_in_func(name = OUT_FUNCTION_NAME_EN, name_ru = OUT_FUNCTION_NAME_RU)]
     #[arg(ty = Str, as_out, default = OUT_STR)]
     pub out_function: fn(&mut String),
+
+    #[add_in_func(name = ANY_ARG_NAME_EN, name_ru = ANY_ARG_NAME_RU)]
+    #[arg(ty = Any)]
+    #[returns(ty = Any)]
+    pub any_arg_func: fn(&Self, ParamValue) -> ParamValue,
 }
 
 #[fixture]
-fn add_in() -> TestAddIn {
-    TestAddIn {
+fn add_in() -> TestAddInFixture {
+    TestAddInFixture {
         connection: Arc::new(None),
         storage: 0,
         function: |addin, a, b| Ok(a + b + addin.storage),
@@ -59,12 +67,13 @@ fn add_in() -> TestAddIn {
         out_function: |out_str| {
             *out_str = format!("Hello, {out_str}!");
         },
+        any_arg_func: |_, arg| arg,
     }
 }
 
 #[rstest]
-fn test_get_n_methods(add_in: TestAddIn) {
-    assert_eq!(add_in.get_n_methods(), 3)
+fn test_get_n_methods(add_in: TestAddInFixture) {
+    assert_eq!(add_in.get_n_methods(), 4)
 }
 
 #[rstest]
@@ -75,7 +84,7 @@ fn test_get_n_methods(add_in: TestAddIn) {
 #[case(OUT_FUNCTION_NAME_EN, Some(2))]
 #[case(OUT_FUNCTION_NAME_RU, Some(2))]
 #[case(INVALID_NAME, None)]
-fn test_find_method(add_in: TestAddIn, #[case] name: &str, #[case] expected: Option<usize>) {
+fn test_find_method(add_in: TestAddInFixture, #[case] name: &str, #[case] expected: Option<usize>) {
     use native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil;
 
     assert_eq!(add_in.find_method(&os_string_nil(name)), expected);
@@ -91,9 +100,9 @@ fn test_find_method(add_in: TestAddIn, #[case] name: &str, #[case] expected: Opt
 #[case(2, 0, Some(OUT_FUNCTION_NAME_EN))]
 #[case(2, 1, Some(OUT_FUNCTION_NAME_RU))]
 #[case(2, 42, Some(OUT_FUNCTION_NAME_RU))]
-#[case(3, 0, None)]
+#[case(42, 0, None)]
 fn test_get_method_name(
-    add_in: TestAddIn,
+    add_in: TestAddInFixture,
     #[case] method_i: usize,
     #[case] alias_i: usize,
     #[case] expected: Option<&str>,
@@ -110,8 +119,9 @@ fn test_get_method_name(
 #[case(0, 2)]
 #[case(1, 2)]
 #[case(2, 1)]
-#[case(3, 0)]
-fn test_get_n_params(add_in: TestAddIn, #[case] method_i: usize, #[case] n_params: usize) {
+#[case(3, 1)]
+#[case(42, 0)]
+fn test_get_n_params(add_in: TestAddInFixture, #[case] method_i: usize, #[case] n_params: usize) {
     assert_eq!(add_in.get_n_params(method_i), n_params);
 }
 
@@ -126,7 +136,7 @@ fn test_get_n_params(add_in: TestAddIn, #[case] method_i: usize, #[case] n_param
 #[case(2, 42, None)]
 #[case(3, 0, None)]
 fn test_get_param_def_value(
-    add_in: TestAddIn,
+    add_in: TestAddInFixture,
     #[case] method_i: usize,
     #[case] param_i: usize,
     #[case] expected: Option<ParamValue>,
@@ -138,13 +148,14 @@ fn test_get_param_def_value(
 #[case(0, true)]
 #[case(1, false)]
 #[case(2, false)]
-#[case(3, false)]
-fn test_has_ret_val(add_in: TestAddIn, #[case] method_i: usize, #[case] has_ret_val: bool) {
+#[case(3, true)]
+#[case(42, false)]
+fn test_has_ret_val(add_in: TestAddInFixture, #[case] method_i: usize, #[case] has_ret_val: bool) {
     assert_eq!(add_in.has_ret_val(method_i), has_ret_val);
 }
 
 #[rstest]
-fn test_call_function(mut add_in: TestAddIn) {
+fn test_call_function(mut add_in: TestAddInFixture) {
     let a = ParamValue::I32(1);
     let b = ParamValue::I32(2);
     let mut params = ParamValues::new(vec![a, b]);
@@ -158,7 +169,7 @@ fn test_call_function(mut add_in: TestAddIn) {
 }
 
 #[rstest]
-fn test_call_procedure(mut add_in: TestAddIn) {
+fn test_call_procedure(mut add_in: TestAddInFixture) {
     let a = ParamValue::I32(1);
     let b = ParamValue::I32(2);
     let mut params = ParamValues::new(vec![a, b]);
@@ -172,7 +183,7 @@ fn test_call_procedure(mut add_in: TestAddIn) {
 }
 
 #[rstest]
-fn test_call_out_function(mut add_in: TestAddIn) {
+fn test_call_out_function(mut add_in: TestAddInFixture) {
     let out_str = os_string("1C");
     let mut params = ParamValues::new(vec![ParamValue::String(out_str)]);
 
@@ -182,4 +193,17 @@ fn test_call_out_function(mut add_in: TestAddIn) {
     let result = add_in.call_as_proc(2, &mut params);
     assert!(result.is_ok());
     assert_eq!(params[0], ParamValue::String(os_string("Hello, 1C!")));
+}
+
+#[rstest]
+#[case(ParamValue::I32(42))]
+#[case(ParamValue::String(os_string("Test")))]
+#[case(ParamValue::Bool(true))]
+fn test_call_any_arg_function(mut add_in: TestAddInFixture, #[case] value: ParamValue) {
+    let params = ParamValues::new(vec![value.clone()]);
+    let func = add_in.find_method(&os_string(ANY_ARG_NAME_EN)).unwrap();
+
+    let result = add_in.call_as_func(func, &mut params.clone());
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), value);
 }

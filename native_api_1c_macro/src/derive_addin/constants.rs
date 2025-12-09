@@ -4,6 +4,7 @@ pub const F64_TYPE: &str = "Float";
 pub const STRING_TYPE: &str = "Str";
 pub const DATE_TYPE: &str = "Date";
 pub const BLOB_TYPE: &str = "Blob";
+pub const ANY_TYPE: &str = "Any";
 pub const UNTYPED_TYPE: &str = "None";
 
 pub const ALL_RETURN_TYPES: &[&str] = &[
@@ -13,6 +14,7 @@ pub const ALL_RETURN_TYPES: &[&str] = &[
     STRING_TYPE,
     DATE_TYPE,
     BLOB_TYPE,
+    ANY_TYPE,
     UNTYPED_TYPE,
 ];
 pub const ALL_ARG_TYPES: &[&str] = &[
@@ -22,4 +24,5 @@ pub const ALL_ARG_TYPES: &[&str] = &[
     STRING_TYPE,
     DATE_TYPE,
     BLOB_TYPE,
+    ANY_TYPE,
 ];

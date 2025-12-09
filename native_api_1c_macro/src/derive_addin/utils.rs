@@ -75,7 +75,6 @@ pub fn expr_from_os_value(expr: &TokenStream, ty: &ParamType) -> proc_macro2::To
     match ty {
         ParamType::String => quote! {
             {
-                let _ = "expr_from_os_value: specific case for String";
                 match &#expr {
                     #ty(val) => {
                         Ok(native_api_1c::native_api_1c_core::ffi::string_utils::from_os_string(&val))
@@ -86,7 +85,6 @@ pub fn expr_from_os_value(expr: &TokenStream, ty: &ParamType) -> proc_macro2::To
         },
         ParamType::Blob => quote! {
             {
-                let _ = "expr_from_os_value: specific case for Blob";
                 match &#expr {
                     #ty(val) => {
                         Ok(val)
@@ -95,9 +93,11 @@ pub fn expr_from_os_value(expr: &TokenStream, ty: &ParamType) -> proc_macro2::To
                 }?.clone()
             }
         },
+        ParamType::Any => quote! {
+            &#expr
+        },
         _ => quote! {
             {
-                let _ = "expr_from_os_value: generic case";
                 match #expr {
                     #ty(val) => {
                         Ok(val)

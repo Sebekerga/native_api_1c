@@ -5,6 +5,7 @@ members = [
     "native_api_1c_macro",
     "sample_addin_rs",
 ]
+resolver = "2"
 
 [patch.crates-io]
 native_api_1c = { path = "native_api_1c" }

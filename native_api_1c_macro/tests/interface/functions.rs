@@ -85,8 +85,6 @@ fn test_get_n_methods(add_in: TestAddInFixture) {
 #[case(OUT_FUNCTION_NAME_RU, Some(2))]
 #[case(INVALID_NAME, None)]
 fn test_find_method(add_in: TestAddInFixture, #[case] name: &str, #[case] expected: Option<usize>) {
-    use native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil;
-
     assert_eq!(add_in.find_method(&os_string_nil(name)), expected);
 }
 
@@ -107,8 +105,6 @@ fn test_get_method_name(
     #[case] alias_i: usize,
     #[case] expected: Option<&str>,
 ) {
-    use native_api_1c::native_api_1c_core::ffi::string_utils::os_string_nil;
-
     assert_eq!(
         add_in.get_method_name(method_i, alias_i),
         expected.map(os_string_nil)
@@ -201,7 +197,7 @@ fn test_call_out_function(mut add_in: TestAddInFixture) {
 #[case(ParamValue::Bool(true))]
 fn test_call_any_arg_function(mut add_in: TestAddInFixture, #[case] value: ParamValue) {
     let params = ParamValues::new(vec![value.clone()]);
-    let func = add_in.find_method(&os_string(ANY_ARG_NAME_EN)).unwrap();
+    let func = add_in.find_method(&os_string_nil(ANY_ARG_NAME_EN)).unwrap();
 
     let result = add_in.call_as_func(func, &mut params.clone());
     assert!(result.is_ok());

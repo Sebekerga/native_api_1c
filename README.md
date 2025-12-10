@@ -59,17 +59,18 @@ Available property types: `i32`, `f64`, `bool`, `String`
 - `name_ru` - property name in 1C in Russian
 ### Input arguments, `#[arg(ty = ...)]`, for each type of argument must be set, on of:
 | Type definition | Rust type               | 1C type                 |
-|-----------------|-------------------------|-------------------------|
+| --------------- | ----------------------- | ----------------------- |
 | `Int`           | `i32`                   | `Number` (Int)          |
 | `Float`         | `f64`                   | `Number` (Float or Int) |
 | `Bool`          | `bool`                  | `Boolean`               |
 | `Str`           | `String`                | `String`                |
 | `Date`          | `chrono::NaiveDateTime` | `Date`                  |
 | `Blob`          | `Vec<u8>`               | `BinaryData`            |
+| `Any`           | `ParamValue`            | `Any`                   |
 
 ### Return values, `#[returns(ty = ...)]`, type must be set, one of:
 | Type definition | Rust type               | 1C type      |
-|-----------------|-------------------------|--------------|
+| --------------- | ----------------------- | ------------ |
 | `Int`           | `i32`                   | `Number`     |
 | `Float`         | `f64`                   | `Number`     |
 | `Bool`          | `bool`                  | `Boolean`    |
@@ -77,6 +78,7 @@ Available property types: `i32`, `f64`, `bool`, `String`
 | `Date`          | `chrono::NaiveDateTime` | `Date`       |
 | `Blob`          | `Vec<u8>`               | `BinaryData` |
 | `None`          | `()`                    | `Undefined`  |
+| `Any`           | `ParamValue`            | `Any`        |
 
 Additionally, `Result<T, ()>` can be used, where `T` is one of the above. In this case, `result` 
 must be set in `#[returns(...)]` attribute: `#[returns(Int, result)]` for `Result<i32, ()>`
@@ -103,7 +105,7 @@ native_api_1c = "0.10.5"
 use std::sync::Arc;
 
 use native_api_1c::{
-    native_api_1c_core::ffi::connection::Connection,
+    native_api_1c_core::{ffi::connection::Connection, interface::ParamValue},
     native_api_1c_macro::{extern_functions, AddIn},
 };
 
@@ -139,6 +141,13 @@ pub struct SampleAddIn {
     #[add_in_func(name = "MyProcedure", name_ru = "МояПроцедура")]
     pub my_procedure: fn(&mut Self),
 
+    /// Function that accepts Any types
+    #[add_in_func(name = "CompareAny", name_ru = "СравнитьЛюбое")]
+    #[arg(ty = Any)]
+    #[arg(ty = Any)]
+    #[returns(ty = Bool)]
+    pub compare_any: fn(ParamValue, ParamValue) -> bool,
+
     /// Private field, not visible from 1C
     private_field: i32,
 }
@@ -152,6 +161,7 @@ impl Default for SampleAddIn {
             my_function: Self::my_function_inner,
             my_procedure: Self::my_procedure_inner,
             private_field: 100,
+            compare_any: Self::compare_any,
         }
     }
 }
@@ -167,6 +177,10 @@ impl SampleAddIn {
 
     fn my_procedure_inner(&mut self) {
         self.protected_prop += 10;
+    }
+
+    fn compare_any(arg1: ParamValue, arg2: ParamValue) -> bool {
+        arg1 == arg2
     }
 }
 

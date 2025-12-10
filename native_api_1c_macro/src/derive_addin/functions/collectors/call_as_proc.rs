@@ -19,12 +19,12 @@ impl Default for CallAsProcCollector {
 
 impl<'a> FromIterator<(usize, &'a FuncDesc)> for CallAsProcCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a FuncDesc)>>(iter: T) -> Self {
-        let mut body = TokenStream::new();
+        let mut tkn_func_calls_with_selectors = vec![];
         for (func_index, func_desc) in iter {
-            let call_func = func_call_tkn(func_desc, None);
-            body.extend(quote! {
+            let tkn_func_call = func_call_tkn(func_desc, None);
+            tkn_func_calls_with_selectors.push(quote! {
                 if method_num == #func_index {
-                    #call_func
+                    #tkn_func_call
                     return Ok(());
                 };
             });
@@ -36,7 +36,9 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for CallAsProcCollector {
                 method_num: usize,
                 params: &mut native_api_1c::native_api_1c_core::interface::ParamValues,
             ) -> native_api_1c::native_api_1c_core::interface::AddInWrapperResult<()> {
-                #body
+                #(#tkn_func_calls_with_selectors)*
+
+                // platform call was invalid
                 Err(())
             }
         };

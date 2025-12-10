@@ -151,6 +151,7 @@ impl TryFrom<FuncArgumentMeta> for FuncArgumentDesc {
                 ParamType::String => true,
                 ParamType::Date => false,
                 ParamType::Blob => false,
+                ParamType::Any => true,
             },
         };
 

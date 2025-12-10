@@ -61,8 +61,8 @@ mod offset {
     pub const USER_LANG: usize = 3;
 }
 
-impl<'a, const OFFSET: usize, T: AddInWrapper> This<OFFSET, T> {
-    unsafe fn get_component(&mut self) -> &'a mut Component<T> {
+impl<const OFFSET: usize, T: AddInWrapper> This<OFFSET, T> {
+    unsafe fn get_component(&mut self) -> &mut Component<T> {
         let new_ptr = (self as *mut This<OFFSET, T> as *mut c_void)
             .sub(OFFSET * std::mem::size_of::<usize>());
         &mut *(new_ptr as *mut Component<T>)

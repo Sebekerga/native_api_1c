@@ -20,24 +20,24 @@ impl Default for CallAsFuncCollector {
 
 impl<'a> FromIterator<(usize, &'a FuncDesc)> for CallAsFuncCollector {
     fn from_iter<T: IntoIterator<Item = (usize, &'a FuncDesc)>>(iter: T) -> Self {
-        let mut body = TokenStream::new();
+        let mut tkn_func_calls_with_selectors = vec![];
         for (func_index, func_desc) in iter {
+            // Skip functions without return value
             if func_desc.return_value.ty.is_none() {
-                // Skip functions without return value
                 continue;
             }
 
-            let return_val_ident = Ident::new("val", proc_macro2::Span::call_site());
-            let call_func = func_call_tkn(func_desc, Some(&return_val_ident));
-            body.extend(quote! {
+            let ident_return_val = Ident::new("val", proc_macro2::Span::call_site());
+            let tkn_func_call = func_call_tkn(func_desc, Some(&ident_return_val));
+            tkn_func_calls_with_selectors.push(quote! {
                 if method_num == #func_index {
-                    #call_func
-                    return Ok(val);
+                    #tkn_func_call
+                    return Ok(#ident_return_val);
                 };
             });
         }
 
-        let definition = quote! {
+        let definition: TokenStream = quote! {
             fn call_as_func(
                 &mut self,
                 method_num: usize,
@@ -45,7 +45,9 @@ impl<'a> FromIterator<(usize, &'a FuncDesc)> for CallAsFuncCollector {
             ) -> native_api_1c::native_api_1c_core::interface::AddInWrapperResult<
                 native_api_1c::native_api_1c_core::interface::ParamValue
             > {
-                #body
+                #(#tkn_func_calls_with_selectors)*
+
+                // platform call was invalid
                 Err(())
             }
         };

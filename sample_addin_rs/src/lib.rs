@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use native_api_1c::{
-    native_api_1c_core::ffi::connection::Connection,
+    native_api_1c_core::{ffi::connection::Connection, interface::ParamValue},
     native_api_1c_macro::{extern_functions, AddIn},
 };
 
@@ -37,6 +37,13 @@ pub struct SampleAddIn {
     #[add_in_func(name = "MyProcedure", name_ru = "МояПроцедура")]
     pub my_procedure: fn(&mut Self),
 
+    /// Function that accepts Any types
+    #[add_in_func(name = "CompareAny", name_ru = "СравнитьЛюбое")]
+    #[arg(ty = Any)]
+    #[arg(ty = Any)]
+    #[returns(ty = Bool)]
+    pub compare_any: fn(ParamValue, ParamValue) -> bool,
+
     /// Private field, not visible from 1C
     private_field: i32,
 }
@@ -50,6 +57,7 @@ impl Default for SampleAddIn {
             my_function: Self::my_function_inner,
             my_procedure: Self::my_procedure_inner,
             private_field: 100,
+            compare_any: Self::compare_any,
         }
     }
 }
@@ -65,6 +73,10 @@ impl SampleAddIn {
 
     fn my_procedure_inner(&mut self) {
         self.protected_prop += 10;
+    }
+
+    fn compare_any(arg1: ParamValue, arg2: ParamValue) -> bool {
+        arg1 == arg2
     }
 }
 

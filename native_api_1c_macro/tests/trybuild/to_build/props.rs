@@ -67,8 +67,11 @@ impl MyAddIn {
             bool_prop_rw: false,
             bool_prop_r: false,
             bool_prop_w: false,
+            #[allow(deprecated)]
             date_prop_rw: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            #[allow(deprecated)]
             date_prop_r: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+            #[allow(deprecated)]
             date_prop_w: chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
             blob_prop_rw: Vec::new(),
             blob_prop_r: Vec::new(),

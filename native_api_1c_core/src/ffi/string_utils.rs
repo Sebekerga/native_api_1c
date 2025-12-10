@@ -27,7 +27,7 @@ pub unsafe fn get_str<'a>(s: *const u16) -> &'a [u16] {
 /// `Vec<u16>` - UTF-16 string without null terminator
 #[cfg(target_family = "unix")]
 pub fn os_string_nil(s: &str) -> Vec<u16> {
-    s.encode_utf16().collect()
+    s.encode_utf16().chain(Some(0)).collect()
 }
 
 /// Helper function to convert Rust string to UTF-16 string

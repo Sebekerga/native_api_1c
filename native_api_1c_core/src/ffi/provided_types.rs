@@ -228,10 +228,21 @@ impl<'a> From<&'a TVariant> for ParamValue {
     fn from(param: &'a TVariant) -> ParamValue {
         unsafe {
             match param.vt {
-                VariantType::Empty => Self::Empty,
+                VariantType::Empty
+                | VariantType::Null
+                | VariantType::Undefined => Self::Empty,
                 VariantType::Bool => Self::Bool(param.value.bool),
-                VariantType::Int32 => Self::I32(param.value.i32),
-                VariantType::Double => Self::F64(param.value.f64),
+                // The platform keeps integer values in `lVal` and fractional ones in
+                // `dblVal` no matter which concrete VTYPE tag accompanies them
+                VariantType::Int8
+                | VariantType::Int16
+                | VariantType::Int32
+                | VariantType::UInt8
+                | VariantType::UInt16
+                | VariantType::Error => Self::I32(param.value.i32),
+                VariantType::Float | VariantType::Double => {
+                    Self::F64(param.value.f64)
+                }
                 VariantType::Time => Self::Date(param.value.tm),
                 VariantType::WStr => Self::String(
                     from_raw_parts(
@@ -247,6 +258,8 @@ impl<'a> From<&'a TVariant> for ParamValue {
                     )
                     .into(),
                 ),
+                // `PStr` would need a codepage to decode and `Date` is an OLE automation
+                // date; `Interface`, `Variant` and `ClsID` are not supported by Native API
                 _ => Self::Empty,
             }
         }
@@ -428,6 +441,125 @@ impl TVariant {
             ParamValue::Blob(v) => {
                 let _ = unsafe { self.update_to_blob(mem_mngr, v.as_slice()) };
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn variant(vt: VariantType, value: VariantValue) -> TVariant {
+        TVariant {
+            value,
+            elements: 0,
+            vt,
+        }
+    }
+
+    #[test]
+    fn empty_tags_map_to_empty() {
+        for vt in [
+            VariantType::Empty,
+            VariantType::Null,
+            VariantType::Undefined,
+        ] {
+            let param = variant(vt, VariantValue { bool: true });
+            assert_eq!(ParamValue::from(&param), ParamValue::Empty);
+        }
+    }
+
+    #[test]
+    fn bool_tag_maps_to_bool() {
+        let param = variant(VariantType::Bool, VariantValue { bool: true });
+        assert_eq!(ParamValue::from(&param), ParamValue::Bool(true));
+    }
+
+    #[test]
+    fn integer_tags_read_lval() {
+        for vt in [
+            VariantType::Int8,
+            VariantType::Int16,
+            VariantType::Int32,
+            VariantType::UInt8,
+            VariantType::UInt16,
+            VariantType::Error,
+        ] {
+            let param = variant(vt, VariantValue { i32: -7 });
+            assert_eq!(ParamValue::from(&param), ParamValue::I32(-7));
+        }
+    }
+
+    #[test]
+    fn fractional_tags_read_dblval() {
+        for vt in [VariantType::Float, VariantType::Double] {
+            let param = variant(vt, VariantValue { f64: 1.5 });
+            assert_eq!(ParamValue::from(&param), ParamValue::F64(1.5));
+        }
+    }
+
+    #[test]
+    fn time_tag_maps_to_date() {
+        let tm = Tm {
+            year: 126,
+            mon: 9,
+            mday: 6,
+            hour: 12,
+            min: 34,
+            sec: 56,
+            ..Tm::default()
+        };
+        let param = variant(VariantType::Time, VariantValue { tm });
+        assert_eq!(ParamValue::from(&param), ParamValue::Date(tm));
+    }
+
+    #[test]
+    fn wstr_tag_maps_to_string() {
+        let data: Vec<u16> = vec![0x41f, 0x440, 0x438, 0x432, 0x435, 0x442];
+        let param = variant(
+            VariantType::WStr,
+            VariantValue {
+                data_str: DataStr {
+                    ptr: data.as_ptr() as *mut u16,
+                    len: data.len() as u32,
+                },
+            },
+        );
+        assert_eq!(ParamValue::from(&param), ParamValue::String(data));
+    }
+
+    #[test]
+    fn blob_tag_maps_to_blob() {
+        let data: Vec<u8> = vec![0xDE, 0xAD, 0xBE, 0xEF];
+        let param = variant(
+            VariantType::Blob,
+            VariantValue {
+                data_blob: DataBlob {
+                    ptr: data.as_ptr() as *mut u8,
+                    len: data.len() as u32,
+                },
+            },
+        );
+        assert_eq!(ParamValue::from(&param), ParamValue::Blob(data));
+    }
+
+    #[test]
+    fn unsupported_tags_map_to_empty() {
+        for vt in [
+            VariantType::PStr,
+            VariantType::Interface,
+            VariantType::Variant,
+            VariantType::ClsID,
+            VariantType::Date,
+            VariantType::Int64,
+            VariantType::UInt64,
+            VariantType::UInt32,
+            VariantType::Int,
+            VariantType::UInt,
+            VariantType::HResult,
+        ] {
+            let param = variant(vt, VariantValue { i32: 1 });
+            assert_eq!(ParamValue::from(&param), ParamValue::Empty);
         }
     }
 }

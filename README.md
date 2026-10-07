@@ -78,8 +78,53 @@ Available property types: `i32`, `f64`, `bool`, `String`
 | `Blob`          | `Vec<u8>`               | `BinaryData` |
 | `None`          | `()`                    | `Undefined`  |
 
-Additionally, `Result<T, ()>` can be used, where `T` is one of the above. In this case, `result` 
+Additionally, `Result<T, ()>` can be used, where `T` is one of the above. In this case, `result`
 must be set in `#[returns(...)]` attribute: `#[returns(Int, result)]` for `Result<i32, ()>`
+
+### Errors and panics
+
+Every callback the platform makes into the component runs behind a panic guard. A Rust panic
+is caught at the FFI boundary, reported to 1C through `AddError` and turned into the failure
+value the platform expects, instead of unwinding into the C++ frames of 1C and aborting the
+process.
+
+After the first panic the component is poisoned: its state is unknown once the stack has
+unwound, so every later call fails without touching the add-in. Reconnect the component to get
+a usable object again.
+
+`extern_functions!` exports `SetPlatformCapabilities`, and that is what makes the reporting
+above visible at all. Without the negotiation the platform withholds message output, so
+`Connection::add_error` silently does nothing.
+
+To report an error from your own code, use the connection kept in the `#[add_in_con]` field:
+
+```rust
+use native_api_1c::native_api_1c_core::ffi::connection::MessageCode;
+
+fn my_function_inner(&self) -> Result<i32, ()> {
+    let Some(connection) = *self.connection else {
+        return Err(());
+    };
+
+    if !port_is_free() {
+        connection.add_error(MessageCode::Fail, "MyAddIn", "Порт занят");
+        return Err(());
+    }
+
+    Ok(42)
+}
+```
+
+`MessageCode` mirrors the `ADDIN_E_*` codes of the 1C documentation: `Info`, `Attention`,
+`Important`, `VeryImportant` and `Fail` put a line with the matching icon into the message
+window, while `DialogAttention`, `DialogInfo` and `DialogFail` show a modal dialog. Returning
+`Err(())` on top of that makes the platform raise a runtime error, catchable with
+`Попытка ... Исключение`; note that `ОписаниеОшибки()` there holds the platform's own text,
+while your `add_error` message goes to the message window.
+
+> `catch_unwind` cannot help if the crate is built with `panic = "abort"` in
+> `[profile.release]` - the process aborts before the guard sees anything. Keep the default
+> `unwind` strategy for a crate that becomes an external component.
 
 ## Example
 

@@ -62,6 +62,12 @@ pub fn expr_to_os_value(
                 #ty(#os_string_fn(&#expr.clone()).clone().into())
             }
         },
+        ParamType::Any => quote! {
+            {
+                let _ = "expr_to_os_value: specific case for Any";
+                #expr.clone()
+            }
+        },
         _ => quote! {
             {
                 let _ = "expr_to_os_value: generic case";
@@ -93,6 +99,14 @@ pub fn expr_from_os_value(expr: &TokenStream, ty: &ParamType) -> proc_macro2::To
                     },
                     _ => Err(()),
                 }?.clone()
+            }
+        },
+        ParamType::Any => quote! {
+            {
+                let _ = "expr_from_os_value: specific case for Any";
+                // Owned, not `&#expr`: `set_prop_val` assigns `#expr.into()` into the field,
+                // and there is no `From<&ParamValue> for ParamValue`
+                #expr.clone()
             }
         },
         _ => quote! {

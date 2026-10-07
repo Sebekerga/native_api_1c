@@ -52,7 +52,8 @@ taking care of `native_api_1c_core::interface::AddInWrapper` property implementa
 - `readable` - property is readable from 1C
 - `writable` - property is writable from 1C
 
-Available property types: `i32`, `f64`, `bool`, `String`
+Available property types: `i32`, `f64`, `bool`, `String`, `chrono::NaiveDateTime`, `Vec<u8>`,
+`ParamValue` (for `Any`)
 
 ## Functions or procedures `#[add_in_func(...)]`
 - `name` - property name in 1C
@@ -66,6 +67,7 @@ Available property types: `i32`, `f64`, `bool`, `String`
 | `Str`           | `String`                | `String`                |
 | `Date`          | `chrono::NaiveDateTime` | `Date`                  |
 | `Blob`          | `Vec<u8>`               | `BinaryData`            |
+| `Any`           | `ParamValue`            | any of the above        |
 
 ### Return values, `#[returns(ty = ...)]`, type must be set, one of:
 | Type definition | Rust type               | 1C type      |
@@ -76,10 +78,50 @@ Available property types: `i32`, `f64`, `bool`, `String`
 | `Str`           | `String`                | `String`     |
 | `Date`          | `chrono::NaiveDateTime` | `Date`       |
 | `Blob`          | `Vec<u8>`               | `BinaryData` |
+| `Any`           | `ParamValue`            | any of above |
 | `None`          | `()`                    | `Undefined`  |
 
 Additionally, `Result<T, ()>` can be used, where `T` is one of the above. In this case, `result`
 must be set in `#[returns(...)]` attribute: `#[returns(Int, result)]` for `Result<i32, ()>`
+
+### Dynamic values, `ty = Any`
+
+`Any` is not a type of its own. `ParamValue` is an enum holding whichever value the platform sent,
+so an `Any` argument, return value or property arrives and leaves with its 1C type intact. Match on
+it in Rust to tell the types apart:
+
+```rust
+use native_api_1c::native_api_1c_core::interface::ParamValue;
+
+#[add_in_func(name = "DescribeValue", name_ru = "ОписатьЗначение")]
+#[arg(ty = Any)]
+#[returns(ty = Any)]
+pub describe_value: fn(&mut Self, ParamValue) -> ParamValue,
+
+// ...
+
+fn describe_value_inner(&mut self, value: ParamValue) -> ParamValue {
+    match &value {
+        ParamValue::Empty => { /* Undefined */ }
+        ParamValue::Bool(v) => { /* Boolean */ }
+        ParamValue::I32(v) => { /* Number, integer */ }
+        ParamValue::F64(v) => { /* Number, fractional */ }
+        ParamValue::Date(v) => { /* Date, as `Tm` */ }
+        ParamValue::String(v) => { /* String, as UTF-16 */ }
+        ParamValue::Blob(v) => { /* BinaryData */ }
+    };
+    value
+}
+```
+
+A default value for an `Any` argument is any `ParamValue` expression, for instance
+`#[arg(ty = Any, default = ParamValue::Empty)]`.
+
+Native API does not support `VTYPE_INTERFACE` and `VTYPE_VARIANT`, so 1C objects (references, value
+tables, structures) cannot be handed to a component at all. `Any` covers `Number`, `String`,
+`Boolean`, `Date`, `BinaryData` and `Undefined` only - serialize objects on the 1C side if you need
+to pass them. Note that `BinaryData` is not supported by the web client, and numbers sent by the web
+client may arrive with any numeric `VTYPE`; those are normalized while converting to `ParamValue`.
 
 ### Errors and panics
 

@@ -46,6 +46,30 @@ pub enum AttachType {
     Any,
 }
 
+/// Version of the platform capabilities a component is able to work with,
+/// negotiated through the `SetPlatformCapabilities` export.
+///
+/// If the export is missing, the platform withholds message output and platform
+/// info, and `Connection::add_error` silently does nothing.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AppCapabilities {
+    /// Component cannot work with what the platform offered
+    Invalid = -1,
+    /// The only capability level the platform defines so far
+    Capabilities1 = 1,
+}
+
+impl AppCapabilities {
+    /// Picks the highest level supported by both sides
+    pub fn negotiate(offered: Self) -> Self {
+        match offered {
+            Self::Capabilities1 => Self::Capabilities1,
+            Self::Invalid => Self::Invalid,
+        }
+    }
+}
+
 /// Struct to extract pointer to `Component` from it's interface components
 /// In some places we need to get pointer to `Component` from it's interface
 /// components, so we need to calculate offset of `Component` in memory
@@ -81,6 +105,8 @@ struct Component<T: AddInWrapper> {
     // Must stay at exactly this offset: `destroy_component` reads it through
     // `ComponentWrapper`, which knows nothing about the fields below
     destroy: unsafe extern "system" fn(*mut *mut Component<T>),
+    /// Set once a panic escaped the add-in code; see `guard`
+    poisoned: bool,
 
     // storage for additional interfaces
     memory_manager_ptr: Option<&'static MemoryManager>,
@@ -112,6 +138,7 @@ pub unsafe fn create_component<T: AddInWrapper>(
         usr_lang_ptr: Default::default(),
 
         destroy: destroy::<T>,
+        poisoned: false,
         memory_manager_ptr: Default::default(),
         connection_ptr: Default::default(),
         locale: Default::default(),
@@ -143,6 +170,67 @@ pub unsafe fn destroy_component(component: *mut *mut c_void) -> c_long {
     0
 }
 
+/// Source reported to 1C for every panic caught at the FFI boundary
+const PANIC_SOURCE: &str = "native_api_1c";
+
+/// Runs a platform callback so that a Rust panic cannot unwind into the C++
+/// frames of 1C, which aborts the whole process.
+///
+/// The add-in state is unknown after unwinding, so the component is poisoned on
+/// the first panic and every later call returns `fallback` without touching it.
+/// `context` names the callback in the message reported to 1C.
+fn guard<T: AddInWrapper, R>(
+    component: &mut Component<T>,
+    context: &'static str,
+    fallback: R,
+    body: impl FnOnce(&mut Component<T>) -> R,
+) -> R {
+    if component.poisoned {
+        return fallback;
+    }
+
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        body(&mut *component)
+    })) {
+        Ok(value) => value,
+        Err(payload) => {
+            component.poisoned = true;
+            report_panic(component, context, &payload);
+            fallback
+        }
+    }
+}
+
+/// Sends the caught panic to 1C. Needs `SetPlatformCapabilities` to be exported,
+/// otherwise the platform drops the message.
+fn report_panic<T: AddInWrapper>(
+    component: &Component<T>,
+    context: &str,
+    payload: &Box<dyn std::any::Any + Send>,
+) {
+    let Some(connection) = component.connection_ptr else {
+        return;
+    };
+
+    let description = format!("{context}: {}", panic_message(payload));
+    connection.add_error(
+        connection::MessageCode::Fail,
+        PANIC_SOURCE,
+        &description,
+    );
+}
+
+/// `panic!` accepts anything, but only the string forms carry a usable message
+fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_owned()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "panic with a payload that is neither &str nor String".to_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -155,7 +243,8 @@ mod tests {
     };
 
     use super::{
-        connection::Connection, create_component, destroy_component, Component,
+        connection::Connection, create_component, destroy_component, guard,
+        AppCapabilities, Component,
     };
 
     /// Minimal `AddInWrapper`, only needed to instantiate `Component` for the
@@ -289,5 +378,62 @@ mod tests {
             assert_eq!(destroy_component(&mut component), 0);
             assert!(component.is_null());
         }
+    }
+
+    /// Builds a live `Component` and frees it again whatever the body does
+    fn with_component<R>(body: impl FnOnce(&mut Component<Dummy>) -> R) -> R {
+        unsafe {
+            let mut raw: *mut c_void = std::ptr::null_mut();
+            assert_eq!(create_component(&mut raw, Dummy), 1);
+
+            let result = body(&mut *(raw as *mut Component<Dummy>));
+
+            assert_eq!(destroy_component(&mut raw), 0);
+            result
+        }
+    }
+
+    #[test]
+    fn guard_returns_body_value_on_success() {
+        with_component(|component| {
+            assert!(guard(component, "test", false, |_| true));
+            assert!(!component.poisoned);
+        });
+    }
+
+    /// Without the guard this panic would unwind through the C++ frames of 1C
+    /// and abort the process
+    #[test]
+    fn guard_poisons_component_and_returns_fallback_on_panic() {
+        with_component(|component| {
+            let value = guard(component, "test", -1, |_| panic!("boom"));
+
+            assert_eq!(value, -1);
+            assert!(component.poisoned);
+        });
+    }
+
+    #[test]
+    fn guard_skips_body_once_poisoned() {
+        with_component(|component| {
+            guard(component, "test", (), |_| panic!("boom"));
+
+            let called = std::cell::Cell::new(false);
+            guard(component, "test", (), |_| called.set(true));
+
+            assert!(!called.get(), "body ran on a poisoned component");
+        });
+    }
+
+    #[test]
+    fn app_capabilities_negotiates_to_the_offered_level() {
+        assert_eq!(
+            AppCapabilities::negotiate(AppCapabilities::Capabilities1),
+            AppCapabilities::Capabilities1
+        );
+        assert_eq!(
+            AppCapabilities::negotiate(AppCapabilities::Invalid),
+            AppCapabilities::Invalid
+        );
     }
 }

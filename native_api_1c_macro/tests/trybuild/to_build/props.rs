@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use native_api_1c::native_api_1c_core::ffi::connection::Connection;
+use native_api_1c::native_api_1c_core::{
+    ffi::connection::Connection,
+    interface::ParamValue,
+};
 use native_api_1c_macro::AddIn;
 
 #[derive(AddIn)]
@@ -49,6 +52,13 @@ pub struct MyAddIn {
     pub blob_prop_r: Vec<u8>,
     #[add_in_prop(ty = Blob, name = "prp_W_blob", name_ru = "свств_W_blob", writable)]
     pub blob_prop_w: Vec<u8>,
+
+    #[add_in_prop(ty = Any, name = "prp_RW_any", name_ru = "свств_RW_any", readable, writable)]
+    pub any_prop_rw: ParamValue,
+    #[add_in_prop(ty = Any, name = "prp_R_any", name_ru = "свств_R_any", readable)]
+    pub any_prop_r: ParamValue,
+    #[add_in_prop(ty = Any, name = "prp_W_any", name_ru = "свств_W_any", writable)]
+    pub any_prop_w: ParamValue,
 }
 
 impl MyAddIn {
@@ -73,6 +83,9 @@ impl MyAddIn {
             blob_prop_rw: Vec::new(),
             blob_prop_r: Vec::new(),
             blob_prop_w: Vec::new(),
+            any_prop_rw: ParamValue::Empty,
+            any_prop_r: ParamValue::Empty,
+            any_prop_w: ParamValue::Empty,
         }
     }
 }

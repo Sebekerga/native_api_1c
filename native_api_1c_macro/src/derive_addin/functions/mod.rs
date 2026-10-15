@@ -4,6 +4,8 @@ use darling::FromMeta;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 
+use crate::derive_addin::constants::ANY_TYPE;
+
 use super::{
     constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE},
     parsers::ParamType,
@@ -104,6 +106,7 @@ impl TryFrom<&str> for FuncParamType {
             STRING_TYPE => Ok(FuncParamType::PlatformType(ParamType::String)),
             DATE_TYPE => Ok(FuncParamType::PlatformType(ParamType::Date)),
             BLOB_TYPE => Ok(FuncParamType::PlatformType(ParamType::Blob)),
+            ANY_TYPE => Ok(FuncParamType::PlatformType(ParamType::Any)),
             _ => Err(()),
         }
     }
@@ -131,6 +134,9 @@ impl ToTokens for FuncParamType {
                 }
                 ParamType::Blob => {
                     quote! { native_api_1c::native_api_1c_core::interface::ParamValue::Blob }
+                }
+                ParamType::Any => {
+                    quote! { native_api_1c::native_api_1c_core::interface::ParamValue }
                 }
             },
         }

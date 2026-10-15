@@ -2,6 +2,8 @@ use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+use crate::derive_addin::constants::ANY_TYPE;
+
 use super::constants::{BLOB_TYPE, BOOL_TYPE, DATE_TYPE, F64_TYPE, I32_TYPE, STRING_TYPE};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -12,6 +14,9 @@ pub enum ParamType {
     String,
     Date,
     Blob,
+    /// Not a concrete 1C type: the value keeps whatever type the platform sent,
+    /// so it maps to `ParamValue` itself instead of one of its variants
+    Any,
 }
 
 const META_TYPE_ERR: &str = "expected string literal or path";
@@ -51,6 +56,7 @@ impl TryFrom<&str> for ParamType {
             STRING_TYPE => Ok(ParamType::String),
             DATE_TYPE => Ok(ParamType::Date),
             BLOB_TYPE => Ok(ParamType::Blob),
+            ANY_TYPE => Ok(ParamType::Any),
             _ => Err(()),
         }
     }
@@ -76,6 +82,9 @@ impl ToTokens for ParamType {
             }
             ParamType::Blob => {
                 quote! { native_api_1c::native_api_1c_core::interface::ParamValue::Blob }
+            }
+            ParamType::Any => {
+                quote! { native_api_1c::native_api_1c_core::interface::ParamValue }
             }
         }
     }

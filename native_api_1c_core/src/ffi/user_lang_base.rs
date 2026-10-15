@@ -1,6 +1,6 @@
 use crate::interface::AddInWrapper;
 
-use super::string_utils::get_str;
+use super::{guard, string_utils::get_str};
 
 type This<T> = super::This<{ super::offset::USER_LANG }, T>;
 
@@ -30,5 +30,10 @@ unsafe extern "system" fn set_user_interface_language_code<T: AddInWrapper>(
 ) {
     let component = this.get_component();
     let lang = get_str(lang);
-    component.addin.set_user_interface_language_code(lang)
+    guard(
+        component,
+        "set_user_interface_language_code",
+        (),
+        |component| component.addin.set_user_interface_language_code(lang),
+    )
 }

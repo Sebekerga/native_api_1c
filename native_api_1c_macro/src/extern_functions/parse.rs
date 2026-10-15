@@ -38,6 +38,7 @@ struct ExternAddInComponentMeta {
 
 #[derive(Debug)]
 pub struct ExternAddInComponentDesc {
+    #[allow(dead_code)]
     pub name_override: Option<String>,
     pub init_tkn: TokenStream,
 }

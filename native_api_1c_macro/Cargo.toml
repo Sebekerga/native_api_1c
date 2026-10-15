@@ -18,6 +18,10 @@ path = "tests/interface/props.rs"
 name = "functions_interface"
 path = "tests/interface/functions.rs"
 
+[[test]]
+name = "any_interface"
+path = "tests/interface/any.rs"
+
 [lib]
 proc-macro = true
 

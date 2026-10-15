@@ -55,8 +55,24 @@ pub fn extern_functions(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let get_class_names_body = quote! { utf16_lit::utf16_null!(#names_lit).as_ptr() };
 
     let result = quote! {
-        pub static mut PLATFORM_CAPABILITIES: std::sync::atomic::AtomicI32 =
-            std::sync::atomic::AtomicI32::new(-1);
+        // Capability level agreed with the platform, see `SetPlatformCapabilities`
+        pub static PLATFORM_CAPABILITIES: std::sync::atomic::AtomicI32 =
+            std::sync::atomic::AtomicI32::new(
+                native_api_1c::native_api_1c_core::ffi::AppCapabilities::Invalid as i32
+            );
+
+        // Without this export the platform withholds message output, so
+        // `Connection::add_error` silently does nothing
+        #[allow(non_snake_case)]
+        #[no_mangle]
+        pub extern "C" fn SetPlatformCapabilities(
+            capabilities: native_api_1c::native_api_1c_core::ffi::AppCapabilities,
+        ) -> native_api_1c::native_api_1c_core::ffi::AppCapabilities {
+            let agreed =
+                native_api_1c::native_api_1c_core::ffi::AppCapabilities::negotiate(capabilities);
+            PLATFORM_CAPABILITIES.store(agreed as i32, std::sync::atomic::Ordering::Relaxed);
+            agreed
+        }
 
         #[allow(non_snake_case)]
         #[no_mangle]

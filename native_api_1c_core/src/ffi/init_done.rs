@@ -1,6 +1,8 @@
 use std::ffi::c_long;
 
-use super::{connection::Connection, memory_manager::MemoryManager, offset};
+use super::{
+    connection::Connection, guard, memory_manager::MemoryManager, offset,
+};
 use crate::interface::AddInWrapper;
 
 type This<T> = super::This<{ offset::INIT_DONE }, T>;
@@ -22,7 +24,13 @@ unsafe extern "system" fn init<T: AddInWrapper>(
     interface: &'static Connection,
 ) -> bool {
     let component = this.get_component();
-    component.addin.init(interface)
+    // Stored before the add-in runs, so that a panic inside `init` can still be
+    // reported through this very connection
+    component.connection_ptr = Some(interface);
+
+    guard(component, "init", false, |component| {
+        component.addin.init(interface)
+    })
 }
 
 unsafe extern "system" fn set_mem_manager<T: AddInWrapper>(
@@ -38,12 +46,14 @@ unsafe extern "system" fn get_info<T: AddInWrapper>(
     this: &mut This<T>,
 ) -> c_long {
     let component = this.get_component();
-    component.addin.get_info() as c_long
+    guard(component, "get_info", 0, |component| {
+        component.addin.get_info() as c_long
+    })
 }
 
 unsafe extern "system" fn done<T: AddInWrapper>(this: &mut This<T>) {
     let component = this.get_component();
-    component.addin.done()
+    guard(component, "done", (), |component| component.addin.done())
 }
 
 impl<T: AddInWrapper> Default for InitDoneBaseVTable<T> {
